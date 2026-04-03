@@ -1,4 +1,5 @@
 import { WorkflowHeading } from "./workflowHeading.component";
+import { WorkflowCanvas } from "./workflowCanvas.component";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -64,7 +65,7 @@ export function WorkflowShell() {
                 <div>
                   <CardTitle>Workflow canvas</CardTitle>
                   <CardDescription className="mt-1">
-                    Empty workspace for the first layout milestone.
+                    Nodes can now be moved, selected, and removed.
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
@@ -77,25 +78,8 @@ export function WorkflowShell() {
                 </div>
               </div>
 
-              <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded-b-[18px] bg-[radial-gradient(circle_at_center,_rgba(148,163,184,0.12)_1px,_transparent_1px)] bg-[length:24px_24px] px-6 py-10">
-                <div className="absolute inset-6 rounded-[14px] border border-dashed border-slate-300" />
-
-                <Card className="relative z-10 w-full max-w-sm rounded-[16px] text-center shadow-sm">
-                  <CardHeader className="px-6 py-6 pb-2">
-                    <CardTitle className="text-xl">Canvas is empty</CardTitle>
-                    <CardDescription className="mt-2 text-sm leading-6 text-slate-600">
-                    The layout is in place. Next we will render the first nodes
-                    here and start wiring basic interactions.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-6 pb-6 pt-1">
-                    <div className="mt-3 flex justify-center">
-                    <Button>
-                      Add first node
-                    </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="relative flex flex-1 overflow-hidden rounded-b-[18px] bg-[#fbfcfd]">
+                <WorkflowCanvas />
               </div>
             </Card>
           </div>
