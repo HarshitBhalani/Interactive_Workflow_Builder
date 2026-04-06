@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Connection, IsValidConnection } from "reactflow";
+import type { Connection, IsValidConnection, XYPosition } from "reactflow";
 import { WorkflowHeading } from "./workflowHeading.component";
 import { WorkflowCanvas } from "./workflowCanvas.component";
 import { Button } from "@/components/ui/button";
@@ -92,6 +92,21 @@ export function WorkflowShell() {
     addNode(kind);
   }
 
+  function handleDropNode(
+    kind: (typeof workflowSidebarNodeKinds)[number],
+    position: XYPosition
+  ) {
+    addNode(kind, position);
+  }
+
+  function handleNodeTypeDragStart(
+    event: React.DragEvent<HTMLDivElement>,
+    kind: (typeof workflowSidebarNodeKinds)[number]
+  ) {
+    event.dataTransfer.setData("application/workflow-node-kind", kind);
+    event.dataTransfer.effectAllowed = "move";
+  }
+
   function handleSaveNodeDetails() {
     if (!editingNodeId) {
       return;
@@ -158,16 +173,32 @@ export function WorkflowShell() {
               <CardContent className="p-4">
                 <div className="grid gap-3">
                   {workflowSidebarNodeKinds.map((nodeKind) => (
-                    <Button
+                    <div
                       key={nodeKind}
-                      type="button"
-                      variant="outline"
-                      className="h-auto w-full justify-between rounded-xl bg-slate-50 px-4 py-3 text-left"
-                      onClick={() => handleAddNode(nodeKind)}
+                      draggable
+                      onDragStart={(event) =>
+                        handleNodeTypeDragStart(event, nodeKind)
+                      }
+                      className="flex cursor-grab items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 active:cursor-grabbing"
                     >
-                      <span className="capitalize">{nodeKind}</span>
-                      <span className="text-slate-400">+</span>
-                    </Button>
+                      <div>
+                        <p className="text-sm font-medium capitalize text-slate-900">
+                          {nodeKind}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Drag to canvas
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 bg-white"
+                        onClick={() => handleAddNode(nodeKind)}
+                      >
+                        +
+                      </Button>
+                    </div>
                   ))}
                 </div>
               </CardContent>
@@ -202,6 +233,7 @@ export function WorkflowShell() {
                   onNodesDelete={handleNodesDelete}
                   onConnect={handleConnect}
                   isValidConnection={validateConnection}
+                  onDropNode={handleDropNode}
                 />
               </div>
             </Card>

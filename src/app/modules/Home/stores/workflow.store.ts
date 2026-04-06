@@ -10,6 +10,7 @@ import {
   type EdgeChange,
   getConnectedEdges,
   type NodeChange,
+  type XYPosition,
 } from "reactflow";
 import { workflowPreviewEdges, workflowPreviewNodes } from "../configs/workflowPreview.config";
 import type {
@@ -28,7 +29,7 @@ type WorkflowStore = {
   handleEdgesChange: (changes: EdgeChange[]) => void;
   handleNodesDelete: (deletedNodes: WorkflowGraphNode[]) => void;
   connectNodes: (connection: Connection) => void;
-  addNode: (kind: WorkflowNodeKind) => void;
+  addNode: (kind: WorkflowNodeKind, position?: XYPosition) => void;
   updateNodeDetails: (
     nodeId: string,
     payload: { title: string; subtitle: string }
@@ -117,9 +118,9 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }));
   },
 
-  addNode: (kind) =>
+  addNode: (kind, position) =>
     set((state) => {
-      const nextNode = createWorkflowNode(kind, state.nodes);
+      const nextNode = createWorkflowNode(kind, state.nodes, position);
 
       return {
         nodes: [

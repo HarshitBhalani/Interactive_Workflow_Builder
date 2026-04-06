@@ -1,3 +1,4 @@
+import type { XYPosition } from "reactflow";
 import type { WorkflowGraphNode, WorkflowNodeKind } from "../types/workflow.type";
 
 const nodeContentByKind = {
@@ -46,7 +47,8 @@ function getNextNodePosition(nodes: WorkflowGraphNode[]) {
 
 export function createWorkflowNode(
   kind: WorkflowNodeKind,
-  nodes: WorkflowGraphNode[]
+  nodes: WorkflowGraphNode[],
+  position?: XYPosition
 ): WorkflowGraphNode {
   const nodeNumber = getNextNodeNumber(kind, nodes);
   const nodeContent = nodeContentByKind[kind];
@@ -54,7 +56,7 @@ export function createWorkflowNode(
   return {
     id: `${kind}-${nodeNumber}`,
     type: "workflowNode",
-    position: getNextNodePosition(nodes),
+    position: position ?? getNextNodePosition(nodes),
     selected: true,
     data: {
       title: nodeContent.title,

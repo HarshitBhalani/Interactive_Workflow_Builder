@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -9,11 +10,14 @@ import ReactFlow, {
   type IsValidConnection,
   type NodeChange,
   type NodeTypes,
+  type ReactFlowInstance,
+  type XYPosition,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import type {
   WorkflowGraphEdge,
   WorkflowGraphNode,
+  WorkflowNodeKind,
 } from "../types/workflow.type";
 import { WorkflowNode } from "./workflowNode.component";
 
@@ -29,6 +33,7 @@ type WorkflowCanvasProps = {
   onNodesDelete: (deletedNodes: WorkflowGraphNode[]) => void;
   onConnect: (connection: Connection) => void;
   isValidConnection: IsValidConnection;
+  onDropNode: (kind: WorkflowNodeKind, position: XYPosition) => void;
 };
 
 export function WorkflowCanvas({
@@ -39,11 +44,41 @@ export function WorkflowCanvas({
   onNodesDelete,
   onConnect,
   isValidConnection,
+  onDropNode,
 }: WorkflowCanvasProps) {
+  const [reactFlowInstance, setReactFlowInstance] =
+    useState<ReactFlowInstance<WorkflowGraphNode, WorkflowGraphEdge> | null>(
+      null
+    );
+
+  function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    const draggedNodeKind = event.dataTransfer.getData(
+      "application/workflow-node-kind"
+    ) as WorkflowNodeKind;
+
+    if (!draggedNodeKind || !reactFlowInstance) {
+      return;
+    }
+
+    const position = reactFlowInstance.screenToFlowPosition({
+      x: event.clientX,
+      y: event.clientY,
+    });
+
+    onDropNode(draggedNodeKind, position);
+  }
 
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full" onDragOver={handleDragOver} onDrop={handleDrop}>
       <ReactFlow
+        onInit={setReactFlowInstance}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
