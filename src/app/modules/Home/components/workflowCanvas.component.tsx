@@ -4,111 +4,53 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   Controls,
-  MarkerType,
-  addEdge,
-  applyEdgeChanges,
-  applyNodeChanges,
   type Connection,
-  type IsValidConnection,
-  getConnectedEdges,
   type EdgeChange,
+  type IsValidConnection,
   type NodeChange,
   type NodeTypes,
-  useEdgesState,
-  useNodesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { workflowPreviewEdges, workflowPreviewNodes } from "../configs/workflowPreview.config";
-import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
+import type {
+  WorkflowGraphEdge,
+  WorkflowGraphNode,
+} from "../types/workflow.type";
 import { WorkflowNode } from "./workflowNode.component";
 
 const nodeTypes: NodeTypes = {
   workflowNode: WorkflowNode,
 };
 
-export function WorkflowCanvas() {
-  const [nodes, setNodes] = useNodesState(workflowPreviewNodes);
-  const [edges, setEdges] = useEdgesState(workflowPreviewEdges);
+type WorkflowCanvasProps = {
+  nodes: WorkflowGraphNode[];
+  edges: WorkflowGraphEdge[];
+  onNodesChange: (changes: NodeChange[]) => void;
+  onEdgesChange: (changes: EdgeChange[]) => void;
+  onNodesDelete: (deletedNodes: WorkflowGraphNode[]) => void;
+  onConnect: (connection: Connection) => void;
+  isValidConnection: IsValidConnection;
+};
 
-  function handleNodesChange(changes: NodeChange[]) {
-    setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
-  }
-
-  function handleEdgesChange(changes: EdgeChange[]) {
-    setEdges((currentEdges) => applyEdgeChanges(changes, currentEdges));
-  }
-
-  function handleNodesDelete(deletedNodes: typeof nodes) {
-    setEdges((currentEdges) => {
-      const connectedEdges = getConnectedEdges(deletedNodes, currentEdges);
-
-      if (connectedEdges.length === 0) {
-        return currentEdges;
-      }
-
-      const connectedIds = new Set(connectedEdges.map((edge) => edge.id));
-
-      return currentEdges.filter((edge) => !connectedIds.has(edge.id));
-    });
-  }
-
-  function handleConnect(connection: Connection) {
-    if (!isValidWorkflowConnection(connection, nodes, edges)) {
-      return;
-    }
-
-    const label =
-      connection.sourceHandle === "yes"
-        ? "Yes"
-        : connection.sourceHandle === "no"
-          ? "No"
-          : undefined;
-
-    const strokeColor =
-      connection.sourceHandle === "yes"
-        ? "#16a34a"
-        : connection.sourceHandle === "no"
-          ? "#e11d48"
-          : "#475569";
-
-    setEdges((currentEdges) =>
-      addEdge(
-        {
-          ...connection,
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: strokeColor,
-          },
-          label,
-          labelStyle: label
-            ? {
-                fill: "#0f172a",
-                fontWeight: 600,
-              }
-            : undefined,
-          style: {
-            stroke: strokeColor,
-            strokeWidth: 1.5,
-          },
-        },
-        currentEdges
-      )
-    );
-  }
-
-  const validateConnection: IsValidConnection = (connection) =>
-    isValidWorkflowConnection(connection, nodes, edges);
+export function WorkflowCanvas({
+  nodes,
+  edges,
+  onNodesChange,
+  onEdgesChange,
+  onNodesDelete,
+  onConnect,
+  isValidConnection,
+}: WorkflowCanvasProps) {
 
   return (
     <div className="h-full w-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={handleNodesChange}
-        onEdgesChange={handleEdgesChange}
-        onNodesDelete={handleNodesDelete}
-        onConnect={handleConnect}
-        isValidConnection={validateConnection}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodesDelete={onNodesDelete}
+        onConnect={onConnect}
+        isValidConnection={isValidConnection}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.18 }}

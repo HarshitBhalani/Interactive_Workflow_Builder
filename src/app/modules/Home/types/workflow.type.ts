@@ -1,3 +1,5 @@
+import type { Edge, Node } from "reactflow";
+
 export type WorkflowNodeKind = "start" | "action" | "condition" | "end";
 
 export type WorkflowNodeData = {
@@ -5,3 +7,6 @@ export type WorkflowNodeData = {
   subtitle: string;
   kind: WorkflowNodeKind;
 };
+
+export type WorkflowGraphNode = Node<WorkflowNodeData>;
+export type WorkflowGraphEdge = Edge;
