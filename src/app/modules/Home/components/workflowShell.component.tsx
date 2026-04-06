@@ -140,9 +140,6 @@ export function WorkflowShell() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary" className="px-3 py-2 text-sm">
-              Draft
-            </Badge>
             <Button variant="outline" type="button" onClick={handleOpenImportModal}>
               Import JSON
             </Button>
