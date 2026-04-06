@@ -1,165 +1,64 @@
 # Interactive Workflow Builder
 
-Interactive Workflow Builder is a React-based visual editor for creating simple workflow graphs with node and edge interactions. The project is being built step by step, with each phase adding one clear piece of functionality instead of trying to do everything at once.
+## Approach and Design Decisions
 
-The current version supports a real React Flow canvas, node creation from the sidebar, drag-and-drop node placement, node editing through a popup, live edge creation, connection rules, and JSON export/import.
+The project was built step by step so each feature could be added, checked, and adjusted before moving to the next one. The editor layout was planned first, then the canvas was connected to React Flow, and after that the workflow behavior was added in layers such as dragging, connecting, validation, editing, JSON handling, and centralized state.
 
-## Current Features
+The screen layout was designed in Excalidraw before implementation. The final structure follows that direction, with a left-side node library and a larger workflow workspace in the center so the graph area remains the main focus of the screen.
 
-- visual workflow canvas built with React Flow
-- node types: `Start`, `Action`, `Condition`, `End`
-- click-to-add node creation from the sidebar
-- drag-and-drop node creation from the sidebar into the canvas
-- draggable nodes
-- node selection and delete support
-- edge creation between nodes
-- basic workflow connection validation
-- condition branching with `Yes` and `No` handles
-- node editing through a popup modal
-- workflow export/import in JSON format
-- centralized workflow graph state using Zustand
+Some key decisions taken during development:
 
-## Workflow Shape
+- React Flow was used as the graph engine because it already handles node-based interactions well.
+- The workflow is represented through `nodes` and `edges` so the data stays easy to understand and easy to save/load.
+- Custom workflow nodes were used to represent `Start`, `Action`, `Condition`, and `End` clearly.
+- Condition branching was handled through dedicated `yes` and `no` output handles.
+- Node editing was moved into a popup flow instead of keeping a fixed side panel open all the time.
+- JSON import/export was added through a modal flow to keep the main editor clean.
 
-The workflow is maintained in a structured format:
+Add the Excalidraw screen image here:
 
-```json
-{
-  "nodes": [],
-  "edges": []
-}
-```
+![Excalidraw screen design](./docs/excalidraw-screen-design.png.png)
 
-This keeps the editor aligned with the assignment requirement and makes save/load easier to support.
+## State Management Strategy
 
-## Tech Stack
+The project currently uses two levels of state management.
 
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-- React Flow
-- Zustand
-- shadcn-style UI components
-
-## Project Structure
-
-The app follows a `src`-based structure and keeps workflow-related logic inside the Home module.
-
-Key areas:
-
-- `src/app/modules/Home/components`
-  - workflow shell
-  - workflow canvas
-  - custom workflow node
-- `src/app/modules/Home/stores`
-  - Zustand workflow store
-- `src/app/modules/Home/utils`
-  - node factory
-  - validation helpers
-  - persistence helpers
-- `src/app/modules/Home/configs`
-  - preview graph data
-
-## Progress So Far
-
-### Phase 1
-
-- built the base workflow editor layout
-- added header, sidebar, and canvas area
-- cleaned the UI text and simplified the screen structure
-
-### Phase 2
-
-- replaced the fake canvas with a real React Flow workspace
-- added static nodes and edges
-- added a condition node with `Yes` and `No` branch outputs
-
-### Phase 3
-
-- enabled dragging for nodes
-- enabled node selection
-- added delete support for selected nodes
-- removed connected edges when deleting a node
-
-### Phase 4
-
-- enabled interactive edge creation
-- added live connections from node handles
-- kept branch labels and edge styling consistent
-
-### Phase 5
-
-- added workflow connection rules
-- blocked invalid connections such as:
-  - self-connections
-  - outgoing edges from `End`
-  - incoming edges into `Start`
-  - duplicate branch usage
-
-### Phase 6
-
-- added sidebar-based node creation
-- added node factory logic for ids, default labels, and positions
-
-### Phase 7
-
-- added node editing through an in-context popup flow
-- removed the fixed side detail panel
-- allowed editing of node title and subtitle
-
-### Phase 8
-
-- added workflow export to JSON
-- added workflow import from JSON
-- added validation for imported workflow structure
-
-### Phase 9
-
-- moved graph state and graph actions into a Zustand store
-- kept UI-specific modal state local in the shell component
-
-### Additional Improvement
-
-- enabled drag-and-drop from sidebar node types into the canvas
-
-## Zustand Usage
-
-Zustand is used as the central workflow state manager for:
+Zustand is used for workflow graph state:
 
 - `nodes`
 - `edges`
 - node creation
 - edge creation
+- node updates
 - delete cleanup
-- node detail updates
 - workflow snapshot loading
 
-UI-only state such as modal visibility and temporary form values is still kept local in the shell component.
+This keeps graph-related logic in one place instead of spreading it across multiple UI components.
 
-## Run Locally
+Local React state is still used for short-lived UI interactions such as:
 
-```bash
-npm install
-npm run dev
-```
+- popup visibility
+- edit form values
+- JSON modal state
+- JSON import error messages
 
-Open `http://localhost:3000` in the browser.
+This split keeps the graph logic centralized while keeping temporary UI state simple.
 
-## Validation
+## Challenges Encountered
 
-The project has been regularly verified with:
+- Making the editor grow in clear phases without overcomplicating early steps took careful planning.
+- React Flow handles graph interaction well, but workflow-specific rules such as valid connections still had to be defined manually.
+- Import/export required cleaning node data so UI-only values were not stored in the workflow JSON.
+- Once more features were added, the shell component started carrying too much graph logic, which is why moving graph state into Zustand became necessary.
+- Sidebar drag-and-drop needed adjustment because using a button itself as the drag source was not reliable enough.
 
-```bash
-npm run lint
-npm run build
-```
+## Potential Improvements
 
-## Remaining Work
-
-The main remaining bonus features are:
-
-- undo / redo
-- mini-map or overview panel
-- keyboard shortcuts for common actions
-- final UI and code cleanup
+- add undo / redo functionality
+- add a mini-map or overview panel
+- add keyboard shortcuts for common actions
+- improve connection validation with stricter workflow rules if needed
+- improve automatic node placement for newly added nodes
+- improve the JSON import/export experience further
+- add more UI polish and consistency across the editor
+- add tests for workflow validation and persistence logic
