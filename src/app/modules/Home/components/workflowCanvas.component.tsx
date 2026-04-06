@@ -4,8 +4,11 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   Controls,
+  MarkerType,
+  addEdge,
   applyEdgeChanges,
   applyNodeChanges,
+  type Connection,
   getConnectedEdges,
   type EdgeChange,
   type NodeChange,
@@ -47,6 +50,46 @@ export function WorkflowCanvas() {
     });
   }
 
+  function handleConnect(connection: Connection) {
+    const label =
+      connection.sourceHandle === "yes"
+        ? "Yes"
+        : connection.sourceHandle === "no"
+          ? "No"
+          : undefined;
+
+    const strokeColor =
+      connection.sourceHandle === "yes"
+        ? "#16a34a"
+        : connection.sourceHandle === "no"
+          ? "#e11d48"
+          : "#475569";
+
+    setEdges((currentEdges) =>
+      addEdge(
+        {
+          ...connection,
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: strokeColor,
+          },
+          label,
+          labelStyle: label
+            ? {
+                fill: "#0f172a",
+                fontWeight: 600,
+              }
+            : undefined,
+          style: {
+            stroke: strokeColor,
+            strokeWidth: 1.5,
+          },
+        },
+        currentEdges
+      )
+    );
+  }
+
   return (
     <div className="h-full w-full">
       <ReactFlow
@@ -55,11 +98,12 @@ export function WorkflowCanvas() {
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onNodesDelete={handleNodesDelete}
+        onConnect={handleConnect}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.18 }}
         nodesDraggable
-        nodesConnectable={false}
+        nodesConnectable
         elementsSelectable
         deleteKeyCode={["Backspace", "Delete"]}
         proOptions={{ hideAttribution: true }}
