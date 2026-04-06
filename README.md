@@ -15,8 +15,6 @@ Some key decisions taken during development:
 - Node editing was moved into a popup flow instead of keeping a fixed side panel open all the time.
 - JSON import/export was added through a modal flow to keep the main editor clean.
 
-Add the Excalidraw screen image here:
-
 ![Excalidraw screen design](./docs/excalidraw-screen-design.png.png)
 
 ## State Management Strategy
