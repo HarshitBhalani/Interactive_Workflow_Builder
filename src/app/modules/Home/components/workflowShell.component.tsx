@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { Connection, IsValidConnection } from "reactflow";
 import { WorkflowHeading } from "./workflowHeading.component";
 import { WorkflowCanvas } from "./workflowCanvas.component";
 import { Button } from "@/components/ui/button";
@@ -12,94 +13,38 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import type { WorkflowSnapshot } from "../types/workflow.type";
+import { workflowSidebarNodeKinds } from "../utils/workflowNodeFactory.util";
 import {
-  MarkerType,
-  addEdge,
-  applyEdgeChanges,
-  applyNodeChanges,
-  type Connection,
-  type EdgeChange,
-  getConnectedEdges,
-  type IsValidConnection,
-  type NodeChange,
-  useEdgesState,
-  useNodesState,
-} from "reactflow";
-import { workflowPreviewEdges, workflowPreviewNodes } from "../configs/workflowPreview.config";
-import { createWorkflowNode, workflowSidebarNodeKinds } from "../utils/workflowNodeFactory.util";
+  createWorkflowSnapshot,
+  parseWorkflowSnapshot,
+} from "../utils/workflowPersistence.util";
 import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
+import { useWorkflowStore } from "../stores/workflow.store";
 
 export function WorkflowShell() {
-  const [nodes, setNodes] = useNodesState(workflowPreviewNodes);
-  const [edges, setEdges] = useEdgesState(workflowPreviewEdges);
+  const nodes = useWorkflowStore((state) => state.nodes);
+  const edges = useWorkflowStore((state) => state.edges);
+  const handleNodesChange = useWorkflowStore((state) => state.handleNodesChange);
+  const handleEdgesChange = useWorkflowStore((state) => state.handleEdgesChange);
+  const handleNodesDelete = useWorkflowStore((state) => state.handleNodesDelete);
+  const addNode = useWorkflowStore((state) => state.addNode);
+  const connectNodes = useWorkflowStore((state) => state.connectNodes);
+  const updateNodeDetails = useWorkflowStore((state) => state.updateNodeDetails);
+  const loadWorkflowSnapshot = useWorkflowStore(
+    (state) => state.loadWorkflowSnapshot
+  );
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftSubtitle, setDraftSubtitle] = useState("");
-
-  function handleNodesChange(changes: NodeChange[]) {
-    setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
-  }
-
-  function handleEdgesChange(changes: EdgeChange[]) {
-    setEdges((currentEdges) => applyEdgeChanges(changes, currentEdges));
-  }
-
-  function handleNodesDelete(deletedNodes: typeof nodes) {
-    setEdges((currentEdges) => {
-      const connectedEdges = getConnectedEdges(deletedNodes, currentEdges);
-
-      if (connectedEdges.length === 0) {
-        return currentEdges;
-      }
-
-      const connectedIds = new Set(connectedEdges.map((edge) => edge.id));
-
-      return currentEdges.filter((edge) => !connectedIds.has(edge.id));
-    });
-  }
+  const [workflowJson, setWorkflowJson] = useState("");
+  const [jsonModalMode, setJsonModalMode] = useState<"export" | "import" | null>(
+    null
+  );
+  const [jsonError, setJsonError] = useState("");
 
   function handleConnect(connection: Connection) {
-    if (!isValidWorkflowConnection(connection, nodes, edges)) {
-      return;
-    }
-
-    const label =
-      connection.sourceHandle === "yes"
-        ? "Yes"
-        : connection.sourceHandle === "no"
-          ? "No"
-          : undefined;
-
-    const strokeColor =
-      connection.sourceHandle === "yes"
-        ? "#16a34a"
-        : connection.sourceHandle === "no"
-          ? "#e11d48"
-          : "#475569";
-
-    setEdges((currentEdges) =>
-      addEdge(
-        {
-          ...connection,
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: strokeColor,
-          },
-          label,
-          labelStyle: label
-            ? {
-                fill: "#0f172a",
-                fontWeight: 600,
-              }
-            : undefined,
-          style: {
-            stroke: strokeColor,
-            strokeWidth: 1.5,
-          },
-        },
-        currentEdges
-      )
-    );
+    connectNodes(connection);
   }
 
   const validateConnection: IsValidConnection = (connection) =>
@@ -123,15 +68,28 @@ export function WorkflowShell() {
     setDraftSubtitle("");
   }
 
-  function handleAddNode(kind: (typeof workflowSidebarNodeKinds)[number]) {
-    setNodes((currentNodes) => {
-      const nextNode = createWorkflowNode(kind, currentNodes);
+  function handleOpenExportModal() {
+    const snapshot: WorkflowSnapshot = createWorkflowSnapshot(nodes, edges);
 
-      return [
-        ...currentNodes.map((node) => ({ ...node, selected: false })),
-        nextNode,
-      ];
-    });
+    setWorkflowJson(JSON.stringify(snapshot, null, 2));
+    setJsonError("");
+    setJsonModalMode("export");
+  }
+
+  function handleOpenImportModal() {
+    setWorkflowJson("");
+    setJsonError("");
+    setJsonModalMode("import");
+  }
+
+  function handleCloseJsonModal() {
+    setJsonModalMode(null);
+    setWorkflowJson("");
+    setJsonError("");
+  }
+
+  function handleAddNode(kind: (typeof workflowSidebarNodeKinds)[number]) {
+    addNode(kind);
   }
 
   function handleSaveNodeDetails() {
@@ -139,22 +97,28 @@ export function WorkflowShell() {
       return;
     }
 
-    setNodes((currentNodes) =>
-      currentNodes.map((node) =>
-        node.id === editingNodeId
-          ? {
-              ...node,
-              data: {
-                ...node.data,
-                title: draftTitle,
-                subtitle: draftSubtitle,
-              },
-            }
-          : node
-      )
-    );
+    updateNodeDetails(editingNodeId, {
+      title: draftTitle,
+      subtitle: draftSubtitle,
+    });
 
     handleCloseNodeEditor();
+  }
+
+  function handleImportWorkflow() {
+    try {
+      const snapshot = parseWorkflowSnapshot(workflowJson);
+
+      loadWorkflowSnapshot(snapshot);
+      handleCloseJsonModal();
+      handleCloseNodeEditor();
+    } catch (error) {
+      setJsonError(
+        error instanceof Error
+          ? error.message
+          : "Could not import the workflow JSON."
+      );
+    }
   }
 
   const canvasNodes = nodes.map((node) => ({
@@ -179,11 +143,11 @@ export function WorkflowShell() {
             <Badge variant="secondary" className="px-3 py-2 text-sm">
               Draft
             </Badge>
-            <Button variant="outline">
-              Save
+            <Button variant="outline" type="button" onClick={handleOpenImportModal}>
+              Import JSON
             </Button>
-            <Button>
-              Validate
+            <Button type="button" onClick={handleOpenExportModal}>
+              Export JSON
             </Button>
           </div>
         </header>
@@ -301,6 +265,50 @@ export function WorkflowShell() {
               <Button type="button" onClick={handleSaveNodeDetails}>
                 Save
               </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {jsonModalMode ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)]">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-950">
+                {jsonModalMode === "export" ? "Export workflow JSON" : "Import workflow JSON"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {jsonModalMode === "export"
+                  ? "Copy this snapshot to save the current workflow."
+                  : "Paste a saved workflow snapshot to load it into the canvas."}
+              </p>
+            </div>
+
+            <div className="space-y-4 px-5 py-5">
+              <textarea
+                value={workflowJson}
+                onChange={(event) => setWorkflowJson(event.target.value)}
+                readOnly={jsonModalMode === "export"}
+                rows={16}
+                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 outline-none transition focus:border-slate-400"
+              />
+
+              {jsonError ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {jsonError}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+              <Button variant="outline" type="button" onClick={handleCloseJsonModal}>
+                Close
+              </Button>
+              {jsonModalMode === "import" ? (
+                <Button type="button" onClick={handleImportWorkflow}>
+                  Load workflow
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>

@@ -11,3 +11,8 @@ export type WorkflowNodeData = {
 
 export type WorkflowGraphNode = Node<WorkflowNodeData>;
 export type WorkflowGraphEdge = Edge;
+
+export type WorkflowSnapshot = {
+  nodes: WorkflowGraphNode[];
+  edges: WorkflowGraphEdge[];
+};
