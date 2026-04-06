@@ -9,6 +9,7 @@ import ReactFlow, {
   applyEdgeChanges,
   applyNodeChanges,
   type Connection,
+  type IsValidConnection,
   getConnectedEdges,
   type EdgeChange,
   type NodeChange,
@@ -18,6 +19,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { workflowPreviewEdges, workflowPreviewNodes } from "../configs/workflowPreview.config";
+import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
 import { WorkflowNode } from "./workflowNode.component";
 
 const nodeTypes: NodeTypes = {
@@ -51,6 +53,10 @@ export function WorkflowCanvas() {
   }
 
   function handleConnect(connection: Connection) {
+    if (!isValidWorkflowConnection(connection, nodes, edges)) {
+      return;
+    }
+
     const label =
       connection.sourceHandle === "yes"
         ? "Yes"
@@ -90,6 +96,9 @@ export function WorkflowCanvas() {
     );
   }
 
+  const validateConnection: IsValidConnection = (connection) =>
+    isValidWorkflowConnection(connection, nodes, edges);
+
   return (
     <div className="h-full w-full">
       <ReactFlow
@@ -99,6 +108,7 @@ export function WorkflowCanvas() {
         onEdgesChange={handleEdgesChange}
         onNodesDelete={handleNodesDelete}
         onConnect={handleConnect}
+        isValidConnection={validateConnection}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.18 }}
