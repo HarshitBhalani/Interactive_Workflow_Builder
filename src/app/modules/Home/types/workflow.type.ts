@@ -6,6 +6,7 @@ export type WorkflowNodeData = {
   title: string;
   subtitle: string;
   kind: WorkflowNodeKind;
+  onEdit?: (nodeId: string) => void;
 };
 
 export type WorkflowGraphNode = Node<WorkflowNodeData>;

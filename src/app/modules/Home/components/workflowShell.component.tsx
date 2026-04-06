@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { WorkflowHeading } from "./workflowHeading.component";
 import { WorkflowCanvas } from "./workflowCanvas.component";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,9 @@ import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
 export function WorkflowShell() {
   const [nodes, setNodes] = useNodesState(workflowPreviewNodes);
   const [edges, setEdges] = useEdgesState(workflowPreviewEdges);
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftSubtitle, setDraftSubtitle] = useState("");
 
   function handleNodesChange(changes: NodeChange[]) {
     setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
@@ -101,6 +105,24 @@ export function WorkflowShell() {
   const validateConnection: IsValidConnection = (connection) =>
     isValidWorkflowConnection(connection, nodes, edges);
 
+  function handleOpenNodeEditor(nodeId: string) {
+    const node = nodes.find((currentNode) => currentNode.id === nodeId);
+
+    if (!node) {
+      return;
+    }
+
+    setEditingNodeId(nodeId);
+    setDraftTitle(node.data.title);
+    setDraftSubtitle(node.data.subtitle);
+  }
+
+  function handleCloseNodeEditor() {
+    setEditingNodeId(null);
+    setDraftTitle("");
+    setDraftSubtitle("");
+  }
+
   function handleAddNode(kind: (typeof workflowSidebarNodeKinds)[number]) {
     setNodes((currentNodes) => {
       const nextNode = createWorkflowNode(kind, currentNodes);
@@ -111,6 +133,37 @@ export function WorkflowShell() {
       ];
     });
   }
+
+  function handleSaveNodeDetails() {
+    if (!editingNodeId) {
+      return;
+    }
+
+    setNodes((currentNodes) =>
+      currentNodes.map((node) =>
+        node.id === editingNodeId
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                title: draftTitle,
+                subtitle: draftSubtitle,
+              },
+            }
+          : node
+      )
+    );
+
+    handleCloseNodeEditor();
+  }
+
+  const canvasNodes = nodes.map((node) => ({
+    ...node,
+    data: {
+      ...node.data,
+      onEdit: handleOpenNodeEditor,
+    },
+  }));
 
   return (
     <main className="min-h-screen bg-[#edf0f2] px-4 py-4 text-foreground sm:px-6">
@@ -143,18 +196,18 @@ export function WorkflowShell() {
               </CardHeader>
               <CardContent className="p-4">
                 <div className="grid gap-3">
-                {workflowSidebarNodeKinds.map((nodeKind) => (
-                  <Button
-                    key={nodeKind}
-                    type="button"
-                    variant="outline"
-                    className="h-auto w-full justify-between rounded-xl bg-slate-50 px-4 py-3 text-left"
-                    onClick={() => handleAddNode(nodeKind)}
-                  >
-                    <span className="capitalize">{nodeKind}</span>
-                    <span className="text-slate-400">+</span>
-                  </Button>
-                ))}
+                  {workflowSidebarNodeKinds.map((nodeKind) => (
+                    <Button
+                      key={nodeKind}
+                      type="button"
+                      variant="outline"
+                      className="h-auto w-full justify-between rounded-xl bg-slate-50 px-4 py-3 text-left"
+                      onClick={() => handleAddNode(nodeKind)}
+                    >
+                      <span className="capitalize">{nodeKind}</span>
+                      <span className="text-slate-400">+</span>
+                    </Button>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -181,7 +234,7 @@ export function WorkflowShell() {
 
               <div className="relative flex flex-1 overflow-hidden rounded-b-[18px] bg-[#fbfcfd]">
                 <WorkflowCanvas
-                  nodes={nodes}
+                  nodes={canvasNodes}
                   edges={edges}
                   onNodesChange={handleNodesChange}
                   onEdgesChange={handleEdgesChange}
@@ -194,6 +247,64 @@ export function WorkflowShell() {
           </div>
         </section>
       </div>
+
+      {editingNodeId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)]">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-950">
+                Edit node
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Update the label shown on the workflow.
+              </p>
+            </div>
+
+            <div className="space-y-4 px-5 py-5">
+              <div className="space-y-2">
+                <label
+                  htmlFor="edit-node-title"
+                  className="text-sm font-medium text-slate-700"
+                >
+                  Title
+                </label>
+                <input
+                  id="edit-node-title"
+                  type="text"
+                  value={draftTitle}
+                  onChange={(event) => setDraftTitle(event.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="edit-node-subtitle"
+                  className="text-sm font-medium text-slate-700"
+                >
+                  Subtitle
+                </label>
+                <textarea
+                  id="edit-node-subtitle"
+                  value={draftSubtitle}
+                  onChange={(event) => setDraftSubtitle(event.target.value)}
+                  rows={4}
+                  className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+              <Button variant="outline" type="button" onClick={handleCloseNodeEditor}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleSaveNodeDetails}>
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
