@@ -14,13 +14,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { WorkflowSnapshot } from "../types/workflow.type";
-import { workflowSidebarNodeKinds } from "../utils/workflowNodeFactory.util";
+import { useWorkflowStore } from "../stores/workflow.store";
 import {
   createWorkflowSnapshot,
   parseWorkflowSnapshot,
 } from "../utils/workflowPersistence.util";
+import { workflowSidebarNodeKinds } from "../utils/workflowNodeFactory.util";
 import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
-import { useWorkflowStore } from "../stores/workflow.store";
 
 export function WorkflowShell() {
   const nodes = useWorkflowStore((state) => state.nodes);
@@ -215,12 +215,8 @@ export function WorkflowShell() {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                  <Badge variant="outline">
-                    100%
-                  </Badge>
-                  <Badge variant="outline">
-                    Center
-                  </Badge>
+                  <Badge variant="outline">100%</Badge>
+                  <Badge variant="outline">Center</Badge>
                 </div>
               </div>
 
@@ -245,9 +241,7 @@ export function WorkflowShell() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)]">
             <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="text-lg font-semibold text-slate-950">
-                Edit node
-              </h2>
+              <h2 className="text-lg font-semibold text-slate-950">Edit node</h2>
               <p className="mt-1 text-sm text-slate-500">
                 Update the label shown on the workflow.
               </p>
@@ -304,7 +298,9 @@ export function WorkflowShell() {
           <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)]">
             <div className="border-b border-slate-200 px-5 py-4">
               <h2 className="text-lg font-semibold text-slate-950">
-                {jsonModalMode === "export" ? "Export workflow JSON" : "Import workflow JSON"}
+                {jsonModalMode === "export"
+                  ? "Export workflow JSON"
+                  : "Import workflow JSON"}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
                 {jsonModalMode === "export"

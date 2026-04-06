@@ -12,7 +12,10 @@ import {
   type NodeChange,
   type XYPosition,
 } from "reactflow";
-import { workflowPreviewEdges, workflowPreviewNodes } from "../configs/workflowPreview.config";
+import {
+  workflowPreviewEdges,
+  workflowPreviewNodes,
+} from "../configs/workflowPreview.config";
 import type {
   WorkflowGraphEdge,
   WorkflowGraphNode,
@@ -64,6 +67,7 @@ function buildEdgeAppearance(connection: Connection) {
       type: MarkerType.ArrowClosed,
       color: strokeColor,
     },
+
     style: {
       stroke: strokeColor,
       strokeWidth: 1.5,
@@ -74,17 +78,14 @@ function buildEdgeAppearance(connection: Connection) {
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   nodes: workflowPreviewNodes,
   edges: workflowPreviewEdges,
-
   handleNodesChange: (changes) =>
     set((state) => ({
       nodes: applyNodeChanges(changes, state.nodes),
     })),
-
   handleEdgesChange: (changes) =>
     set((state) => ({
       edges: applyEdgeChanges(changes, state.edges),
     })),
-
   handleNodesDelete: (deletedNodes) =>
     set((state) => {
       const connectedEdges = getConnectedEdges(deletedNodes, state.edges);
@@ -99,7 +100,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         edges: state.edges.filter((edge) => !connectedIds.has(edge.id)),
       };
     }),
-
   connectNodes: (connection) => {
     const { nodes, edges } = get();
 
@@ -117,7 +117,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       ),
     }));
   },
-
   addNode: (kind, position) =>
     set((state) => {
       const nextNode = createWorkflowNode(kind, state.nodes, position);
@@ -129,7 +128,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         ],
       };
     }),
-
   updateNodeDetails: (nodeId, payload) =>
     set((state) => ({
       nodes: state.nodes.map((node) =>
@@ -145,7 +143,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           : node
       ),
     })),
-
   loadWorkflowSnapshot: (snapshot) =>
     set({
       nodes: snapshot.nodes,
