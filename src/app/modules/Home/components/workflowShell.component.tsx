@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Connection, IsValidConnection, XYPosition } from "reactflow";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,30 +19,53 @@ import type {
   WorkflowNodeKind,
   WorkflowSnapshot,
 } from "../types/workflow.type";
-import { createWorkflowSnapshot, parseWorkflowSnapshot } from "../utils/workflowPersistence.util";
+import {
+  createWorkflowSnapshot,
+  parseWorkflowSnapshot,
+} from "../utils/workflowPersistence.util";
 import { workflowNodeCatalog } from "../utils/workflowNodeFactory.util";
 import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
 import WorkflowCanvas from "./workflowCanvas.component";
 import { WorkflowHeading } from "./workflowHeading.component";
 
-
-
-
 type JsonModalMode = "export" | "import" | null;
 
 const dragDataKey = "application/workflow-node-kind";
 
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+
+  return (
+    tagName === "input" ||
+    tagName === "textarea" ||
+    tagName === "select" ||
+    target.isContentEditable
+  );
+}
+
 export function WorkflowShell() {
   const nodes: WorkflowGraphNode[] = useWorkflowStore((state) => state.nodes);
   const edges: WorkflowGraphEdge[] = useWorkflowStore((state) => state.edges);
-  const handleNodesChange = useWorkflowStore((state) => state.handleNodesChange);
-  const handleEdgesChange = useWorkflowStore((state) => state.handleEdgesChange);
-  const handleNodesDelete = useWorkflowStore((state) => state.handleNodesDelete);
+  const handleNodesChange = useWorkflowStore(
+    (state) => state.handleNodesChange,
+  );
+  const handleEdgesChange = useWorkflowStore(
+    (state) => state.handleEdgesChange,
+  );
+  const handleNodesDelete = useWorkflowStore(
+    (state) => state.handleNodesDelete,
+  );
   const addNode = useWorkflowStore((state) => state.addNode);
   const connectNodes = useWorkflowStore((state) => state.connectNodes);
-  const updateNodeDetails = useWorkflowStore((state) => state.updateNodeDetails);
+  const updateNodeDetails = useWorkflowStore(
+    (state) => state.updateNodeDetails,
+  );
   const loadWorkflowSnapshot = useWorkflowStore(
-    (state) => state.loadWorkflowSnapshot
+    (state) => state.loadWorkflowSnapshot,
   );
 
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
@@ -53,7 +76,7 @@ export function WorkflowShell() {
   const [jsonError, setJsonError] = useState("");
 
   const selectedNode = editingNodeId
-    ? nodes.find((node) => node.id === editingNodeId) ?? null
+    ? (nodes.find((node) => node.id === editingNodeId) ?? null)
     : null;
 
   const canvasNodes: WorkflowCanvasNode[] = nodes.map((node) => ({
@@ -89,10 +112,11 @@ export function WorkflowShell() {
     setDraftSubtitle("");
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   function openExportModal() {
     const snapshot: WorkflowSnapshot = createWorkflowSnapshot(nodes, edges);
 
-    setWorkflowJson(JSON.stringify(snapshot, null, 2));
+    setWorkflowJson(JSON.stringify(snapshot,null,2));
     setJsonError("");
     setJsonModalMode("export");
   }
@@ -113,6 +137,7 @@ export function WorkflowShell() {
     connectNodes(connection);
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   function handleAddNode(kind: WorkflowNodeKind) {
     addNode(kind);
   }
@@ -123,12 +148,13 @@ export function WorkflowShell() {
 
   function handleNodeTypeDragStart(
     event: React.DragEvent<HTMLDivElement>,
-    kind: WorkflowNodeKind
+    kind: WorkflowNodeKind,
   ) {
-    event.dataTransfer.setData(dragDataKey,kind);
-    event.dataTransfer.effectAllowed ="move";
+    event.dataTransfer.setData(dragDataKey, kind);
+    event.dataTransfer.effectAllowed = "move";
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   function saveNodeDetails() {
     if (!editingNodeId) {
       return;
@@ -142,6 +168,7 @@ export function WorkflowShell() {
     closeNodeEditor();
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   function importWorkflow() {
     try {
       const snapshot = parseWorkflowSnapshot(workflowJson);
@@ -153,10 +180,102 @@ export function WorkflowShell() {
       setJsonError(
         error instanceof Error
           ? error.message
-          : "Could not import the workflow JSON."
+          : "Could not import the workflow JSON.",
       );
     }
   }
+
+  useEffect(()=>{
+    function handleKeyDown(event: KeyboardEvent) {
+      const pressedKey = event.key.toLowerCase();
+      const isPrimaryModifierPressed = event.ctrlKey || event.metaKey;
+      const isEditorOpen = editingNodeId !== null || jsonModalMode !== null;
+
+      if (pressedKey === "escape") {
+        if (editingNodeId !== null) {
+          closeNodeEditor();
+        }
+
+        if (jsonModalMode !== null) {
+          closeJsonModal();
+        }
+        return;
+      }
+
+      if (isTypingTarget(event.target)) {
+        if (
+          isPrimaryModifierPressed &&
+          pressedKey === "enter" &&
+          editingNodeId !== null
+        ) {
+          event.preventDefault();
+          saveNodeDetails();
+        }
+
+        if (
+          isPrimaryModifierPressed &&
+          pressedKey === "enter" &&
+          jsonModalMode === "import"
+        ) {
+          event.preventDefault();
+          importWorkflow();
+        }
+
+        return;
+      }
+
+      if (isPrimaryModifierPressed && pressedKey === "s") {
+        event.preventDefault();
+        openExportModal();
+        return;
+      }
+
+      if (isPrimaryModifierPressed && pressedKey === "o") {
+        event.preventDefault();
+        openImportModal();
+
+        return;
+      }
+
+      if (isEditorOpen) {
+        return;
+      }
+
+      if (pressedKey === "s") {
+        handleAddNode("start");
+        return;
+      }
+
+      if (pressedKey === "a") {
+        handleAddNode("action");
+        return;
+      }
+
+      if (pressedKey === "c") {
+        handleAddNode("condition");
+        return;
+      }
+
+      if (pressedKey === "e") {
+        handleAddNode("end");
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [
+    editingNodeId,
+    jsonModalMode,
+    nodes,
+    edges,
+    saveNodeDetails,
+    importWorkflow,
+    openExportModal,
+    handleAddNode,
+  ]);
 
   return (
     <main className="min-h-screen bg-[#edf0f2] px-4 py-4 text-foreground sm:px-6">
@@ -168,6 +287,7 @@ export function WorkflowShell() {
             <Button variant="outline" type="button" onClick={openImportModal}>
               Import JSON
             </Button>
+
             <Button type="button" onClick={openExportModal}>
               Export JSON
             </Button>
@@ -178,7 +298,7 @@ export function WorkflowShell() {
           <aside className="border-b border-black/8 bg-[#f6f8f9] p-5 lg:border-r lg:border-b-0">
             <Card className="rounded-2xl">
               <CardHeader className="p-4 pb-0">
-                <CardTitle className="text-base">Node library</CardTitle>
+                <CardTitle className="text-base">Node state</CardTitle>
                 {/* <CardDescription>
                   Drag a block into the canvas or add it with one click.
                 </CardDescription> */}
@@ -198,7 +318,6 @@ export function WorkflowShell() {
                         <p className="text-sm font-medium text-slate-900">
                           {nodeItem.badge}
                         </p>
-                       
                       </div>
                       <Button
                         type="button"
@@ -222,7 +341,7 @@ export function WorkflowShell() {
                 <div>
                   <CardTitle>Workflow canvas</CardTitle>
                   <CardDescription className="mt-1">
-                    Arrange the flow visually, then connect each step in order.
+                    Make a workflow
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
@@ -252,7 +371,9 @@ export function WorkflowShell() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)]">
             <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="text-lg font-semibold text-slate-950">Edit node</h2>
+              <h2 className="text-lg font-semibold text-slate-950">
+                Edit node
+              </h2>
               <p className="mt-1 text-sm text-slate-500">
                 {selectedNode
                   ? `Update the content for the ${selectedNode.data.kind} node.`

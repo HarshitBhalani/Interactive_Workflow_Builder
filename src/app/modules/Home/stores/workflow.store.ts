@@ -76,26 +76,25 @@ function buildEdgeAppearance(connection: Connection) {
 }
 
 function clearNodeSelection(nodes: WorkflowGraphNode[]) {
-  return nodes.map((node) => ({ ...node, selected: false }));
+  return nodes.map((node) => ({...node,selected: false }));
 }
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   nodes: workflowPreviewNodes,
   edges: workflowPreviewEdges,
   handleNodesChange: (changes) =>
-    set((state) => ({
-      nodes: applyNodeChanges(changes, state.nodes),
+    set((state)=>({
+      nodes: applyNodeChanges(changes,state.nodes),
     })),
   handleEdgesChange: (changes) =>
-    set((state) => ({
-      edges: applyEdgeChanges(changes, state.edges),
+    set((state)=>({
+      edges: applyEdgeChanges(changes,state.edges),
     })),
   handleNodesDelete: (deletedNodes) =>
     set((state) => {
       const connectedEdges = getConnectedEdges(deletedNodes, state.edges);
-
       if (connectedEdges.length === 0) {
-        return { edges: state.edges };
+        return {edges: state.edges};
       }
 
       const connectedIds = new Set(connectedEdges.map((edge) => edge.id));
@@ -123,7 +122,10 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   },
   addNode: (kind, position) =>
     set((state) => {
-      const nextNode = createWorkflowNode(kind, state.nodes, position);
+
+
+
+      const nextNode = createWorkflowNode(kind,state.nodes, position);
 
       return {
         nodes: [
@@ -135,7 +137,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   updateNodeDetails: (nodeId, payload) =>
     set((state) => ({
       nodes: state.nodes.map((node) =>
-        node.id === nodeId
+        node.id===nodeId
+
           ? {
               ...node,
               data: {
@@ -146,8 +149,9 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
             }
           : node
       ),
+   
     })),
-  loadWorkflowSnapshot: (snapshot) =>
+  loadWorkflowSnapshot:(snapshot) =>
     set({
       nodes:clearNodeSelection(snapshot.nodes),
       edges:snapshot.edges,
