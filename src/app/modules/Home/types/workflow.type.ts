@@ -10,6 +10,10 @@ export type WorkflowNodeData = {
 };
 
 export type WorkflowGraphNode = Node<WorkflowNodeData>;
+export type WorkflowEditorNodeData = WorkflowNodeData & {
+  onEdit: (nodeId: string) => void;
+};
+export type WorkflowCanvasNode = Node<WorkflowEditorNodeData>;
 export type WorkflowGraphEdge = Edge;
 
 export type WorkflowSnapshot = {

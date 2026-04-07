@@ -1,62 +1,42 @@
 # Interactive Workflow Builder
 
-## Approach and Design Decisions
+A small visual editor for assembling approval flows and branching workflows. The app lets you place nodes on a canvas, connect them with simple guardrails, edit labels inline, and import or export the current graph as JSON.
 
-The project was built step by step so each feature could be added, checked, and adjusted before moving to the next one. The editor layout was planned first, then the canvas was connected to React Flow, and after that the workflow behavior was added in layers such as dragging, connecting, validation, editing, JSON handling, and centralized state.
+## What the project covers
 
-The screen layout was designed in Excalidraw before implementation. The final structure follows that direction, with a left-side node library and a larger workflow workspace in the center so the graph area remains the main focus of the screen.
+- drag-and-drop node creation with React Flow
+- typed workflow state with Zustand and TypeScript
+- inline editing for node labels and descriptions
+- JSON import/export for saving and restoring workflows
+- connection rules for start, end, and condition branches
 
-Some key decisions taken during development:
+## Stack
 
-- React Flow was used as the graph engine because it already handles node-based interactions well.
-- The workflow is represented through `nodes` and `edges` so the data stays easy to understand and easy to save/load.
-- Custom workflow nodes were used to represent `Start`, `Action`, `Condition`, and `End` clearly.
-- Condition branching was handled through dedicated `yes` and `no` output handles.
-- Node editing was moved into a popup flow instead of keeping a fixed side panel open all the time.
-- JSON import/export was added through a modal flow to keep the main editor clean.
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- React Flow
+- Zustand
 
-![Excalidraw screen design](./docs/excalidraw-screen-design.png.png)
+## Running locally
 
-## State Management Strategy
+```bash
+npm install
+npm run dev
+```
 
-The project currently uses two levels of state management.
+Open `http://localhost:3000`.
 
-Zustand is used for workflow graph state:
+## Notes on implementation
 
-- `nodes`
-- `edges`
-- node creation
-- edge creation
-- node updates
-- delete cleanup
-- workflow snapshot loading
+- Graph state lives in a dedicated store so canvas interactions stay out of the page-level UI.
+- The node catalog is centralized, which keeps the sidebar, node creation, and default labels in sync.
+- JSON import is validated before state is loaded so malformed payloads fail fast with a readable error.
 
-This keeps graph-related logic in one place instead of spreading it across multiple UI components.
+## Possible next steps
 
-Local React state is still used for short-lived UI interactions such as:
-
-- popup visibility
-- edit form values
-- JSON modal state
-- JSON import error messages
-
-This split keeps the graph logic centralized while keeping temporary UI state simple.
-
-## Challenges Encountered
-
-- Making the editor grow in clear phases without overcomplicating early steps took careful planning.
-- React Flow handles graph interaction well, but workflow-specific rules such as valid connections still had to be defined manually.
-- Import/export required cleaning node data so UI-only values were not stored in the workflow JSON.
-- Once more features were added, the shell component started carrying too much graph logic, which is why moving graph state into Zustand became necessary.
-- Sidebar drag-and-drop needed adjustment because using a button itself as the drag source was not reliable enough.
-
-## Potential Improvements
-
-- add undo / redo functionality
-- add a mini-map or overview panel
-- add keyboard shortcuts for common actions
-- improve connection validation with stricter workflow rules if needed
-- improve automatic node placement for newly added nodes
-- improve the JSON import/export experience further
-- add more UI polish and consistency across the editor
-- add tests for workflow validation and persistence logic
+- add undo/redo support
+- add workflow-level validation before export
+- add tests for validation and persistence helpers
+- add keyboard shortcuts for common canvas actions

@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 import type { Connection, IsValidConnection, XYPosition } from "reactflow";
-import { WorkflowHeading } from "./workflowHeading.component";
-import { WorkflowCanvas } from "./workflowCanvas.component";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -13,18 +11,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { WorkflowSnapshot } from "../types/workflow.type";
 import { useWorkflowStore } from "../stores/workflow.store";
-import {
-  createWorkflowSnapshot,
-  parseWorkflowSnapshot,
-} from "../utils/workflowPersistence.util";
-import { workflowSidebarNodeKinds } from "../utils/workflowNodeFactory.util";
+import type {
+  WorkflowCanvasNode,
+  WorkflowGraphEdge,
+  WorkflowGraphNode,
+  WorkflowNodeKind,
+  WorkflowSnapshot,
+} from "../types/workflow.type";
+import { createWorkflowSnapshot, parseWorkflowSnapshot } from "../utils/workflowPersistence.util";
+import { workflowNodeCatalog } from "../utils/workflowNodeFactory.util";
 import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
+import WorkflowCanvas from "./workflowCanvas.component";
+import { WorkflowHeading } from "./workflowHeading.component";
+
+type JsonModalMode = "export" | "import" | null;
+
+const dragDataKey = "application/workflow-node-kind";
 
 export function WorkflowShell() {
-  const nodes = useWorkflowStore((state) => state.nodes);
-  const edges = useWorkflowStore((state) => state.edges);
+  const nodes: WorkflowGraphNode[] = useWorkflowStore((state) => state.nodes);
+  const edges: WorkflowGraphEdge[] = useWorkflowStore((state) => state.edges);
   const handleNodesChange = useWorkflowStore((state) => state.handleNodesChange);
   const handleEdgesChange = useWorkflowStore((state) => state.handleEdgesChange);
   const handleNodesDelete = useWorkflowStore((state) => state.handleNodesDelete);
@@ -34,23 +41,34 @@ export function WorkflowShell() {
   const loadWorkflowSnapshot = useWorkflowStore(
     (state) => state.loadWorkflowSnapshot
   );
+
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftSubtitle, setDraftSubtitle] = useState("");
   const [workflowJson, setWorkflowJson] = useState("");
-  const [jsonModalMode, setJsonModalMode] = useState<"export" | "import" | null>(
-    null
-  );
+  const [jsonModalMode, setJsonModalMode] = useState<JsonModalMode>(null);
   const [jsonError, setJsonError] = useState("");
 
-  function handleConnect(connection: Connection) {
-    connectNodes(connection);
-  }
+  const selectedNode = editingNodeId
+    ? nodes.find((node) => node.id === editingNodeId) ?? null
+    : null;
+
+  const canvasNodes: WorkflowCanvasNode[] = nodes.map((node) => ({
+    ...node,
+    data: {
+      ...node.data,
+      onEdit: openNodeEditor,
+    },
+  }));
 
   const validateConnection: IsValidConnection = (connection) =>
     isValidWorkflowConnection(connection, nodes, edges);
 
-  function handleOpenNodeEditor(nodeId: string) {
+  function handleCanvasNodesDelete(deletedNodes: WorkflowCanvasNode[]) {
+    handleNodesDelete(deletedNodes);
+  }
+
+  function openNodeEditor(nodeId: string) {
     const node = nodes.find((currentNode) => currentNode.id === nodeId);
 
     if (!node) {
@@ -62,13 +80,13 @@ export function WorkflowShell() {
     setDraftSubtitle(node.data.subtitle);
   }
 
-  function handleCloseNodeEditor() {
+  function closeNodeEditor() {
     setEditingNodeId(null);
     setDraftTitle("");
     setDraftSubtitle("");
   }
 
-  function handleOpenExportModal() {
+  function openExportModal() {
     const snapshot: WorkflowSnapshot = createWorkflowSnapshot(nodes, edges);
 
     setWorkflowJson(JSON.stringify(snapshot, null, 2));
@@ -76,57 +94,58 @@ export function WorkflowShell() {
     setJsonModalMode("export");
   }
 
-  function handleOpenImportModal() {
+  function openImportModal() {
     setWorkflowJson("");
     setJsonError("");
     setJsonModalMode("import");
   }
 
-  function handleCloseJsonModal() {
+  function closeJsonModal() {
     setJsonModalMode(null);
     setWorkflowJson("");
     setJsonError("");
   }
 
-  function handleAddNode(kind: (typeof workflowSidebarNodeKinds)[number]) {
+  function handleConnect(connection: Connection) {
+    connectNodes(connection);
+  }
+
+  function handleAddNode(kind: WorkflowNodeKind) {
     addNode(kind);
   }
 
-  function handleDropNode(
-    kind: (typeof workflowSidebarNodeKinds)[number],
-    position: XYPosition
-  ) {
+  function handleDropNode(kind: WorkflowNodeKind, position: XYPosition) {
     addNode(kind, position);
   }
 
   function handleNodeTypeDragStart(
     event: React.DragEvent<HTMLDivElement>,
-    kind: (typeof workflowSidebarNodeKinds)[number]
+    kind: WorkflowNodeKind
   ) {
-    event.dataTransfer.setData("application/workflow-node-kind", kind);
+    event.dataTransfer.setData(dragDataKey, kind);
     event.dataTransfer.effectAllowed = "move";
   }
 
-  function handleSaveNodeDetails() {
+  function saveNodeDetails() {
     if (!editingNodeId) {
       return;
     }
 
     updateNodeDetails(editingNodeId, {
-      title: draftTitle,
-      subtitle: draftSubtitle,
+      title: draftTitle.trim() || "Untitled node",
+      subtitle: draftSubtitle.trim() || "Add a short description",
     });
 
-    handleCloseNodeEditor();
+    closeNodeEditor();
   }
 
-  function handleImportWorkflow() {
+  function importWorkflow() {
     try {
       const snapshot = parseWorkflowSnapshot(workflowJson);
 
       loadWorkflowSnapshot(snapshot);
-      handleCloseJsonModal();
-      handleCloseNodeEditor();
+      closeJsonModal();
+      closeNodeEditor();
     } catch (error) {
       setJsonError(
         error instanceof Error
@@ -136,67 +155,56 @@ export function WorkflowShell() {
     }
   }
 
-  const canvasNodes = nodes.map((node) => ({
-    ...node,
-    data: {
-      ...node.data,
-      onEdit: handleOpenNodeEditor,
-    },
-  }));
-
   return (
     <main className="min-h-screen bg-[#edf0f2] px-4 py-4 text-foreground sm:px-6">
       <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-7xl flex-col overflow-hidden rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)]">
         <header className="flex flex-col gap-4 border-b border-black/8 px-5 py-5 lg:flex-row lg:items-end lg:justify-between lg:px-6">
-          <div className="min-w-0">
-            <div className="mt-1">
-              <WorkflowHeading />
-            </div>
-          </div>
+          <WorkflowHeading />
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" type="button" onClick={handleOpenImportModal}>
+            <Button variant="outline" type="button" onClick={openImportModal}>
               Import JSON
             </Button>
-            <Button type="button" onClick={handleOpenExportModal}>
+            <Button type="button" onClick={openExportModal}>
               Export JSON
             </Button>
           </div>
         </header>
 
-        <section className="grid flex-1 gap-0 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <section className="grid flex-1 gap-0 lg:grid-cols-[280px_minmax(0,1fr)]">
           <aside className="border-b border-black/8 bg-[#f6f8f9] p-5 lg:border-r lg:border-b-0">
-            <Card className="rounded-[16px]">
+            <Card className="rounded-2xl">
               <CardHeader className="p-4 pb-0">
-                <CardTitle className="text-base">Node types</CardTitle>
+                <CardTitle className="text-base">Node library</CardTitle>
+                {/* <CardDescription>
+                  Drag a block into the canvas or add it with one click.
+                </CardDescription> */}
               </CardHeader>
               <CardContent className="p-4">
                 <div className="grid gap-3">
-                  {workflowSidebarNodeKinds.map((nodeKind) => (
+                  {workflowNodeCatalog.map((nodeItem) => (
                     <div
-                      key={nodeKind}
+                      key={nodeItem.kind}
                       draggable
                       onDragStart={(event) =>
-                        handleNodeTypeDragStart(event, nodeKind)
+                        handleNodeTypeDragStart(event, nodeItem.kind)
                       }
-                      className="flex cursor-grab items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 active:cursor-grabbing"
+                      className="flex cursor-grab items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 active:cursor-grabbing"
                     >
-                      <div>
-                        <p className="text-sm font-medium capitalize text-slate-900">
-                          {nodeKind}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900">
+                          {nodeItem.badge}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Drag to canvas
-                        </p>
+                       
                       </div>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className="shrink-0 bg-white"
-                        onClick={() => handleAddNode(nodeKind)}
+                        onClick={() => handleAddNode(nodeItem.kind)}
                       >
-                        +
+                        Add
                       </Button>
                     </div>
                   ))}
@@ -206,17 +214,17 @@ export function WorkflowShell() {
           </aside>
 
           <div className="bg-[#f1f4f5] p-5 lg:p-6">
-            <Card className="flex h-full min-h-[420px] flex-col rounded-[18px]">
+            <Card className="flex h-full min-h-105 flex-col rounded-[18px]">
               <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle>Workflow canvas</CardTitle>
                   <CardDescription className="mt-1">
-                    Add nodes from the sidebar and place them where needed.
+                    Arrange the flow visually, then connect each step in order.
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                  <Badge variant="outline">100%</Badge>
-                  <Badge variant="outline">Center</Badge>
+                  <Badge variant="outline">{nodes.length} nodes</Badge>
+                  <Badge variant="outline">{edges.length} links</Badge>
                 </div>
               </div>
 
@@ -226,7 +234,7 @@ export function WorkflowShell() {
                   edges={edges}
                   onNodesChange={handleNodesChange}
                   onEdgesChange={handleEdgesChange}
-                  onNodesDelete={handleNodesDelete}
+                  onNodesDelete={handleCanvasNodesDelete}
                   onConnect={handleConnect}
                   isValidConnection={validateConnection}
                   onDropNode={handleDropNode}
@@ -243,7 +251,9 @@ export function WorkflowShell() {
             <div className="border-b border-slate-200 px-5 py-4">
               <h2 className="text-lg font-semibold text-slate-950">Edit node</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Update the label shown on the workflow.
+                {selectedNode
+                  ? `Update the content for the ${selectedNode.data.kind} node.`
+                  : "Update the label shown on the workflow."}
               </p>
             </div>
 
@@ -282,10 +292,10 @@ export function WorkflowShell() {
             </div>
 
             <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
-              <Button variant="outline" type="button" onClick={handleCloseNodeEditor}>
+              <Button variant="outline" type="button" onClick={closeNodeEditor}>
                 Cancel
               </Button>
-              <Button type="button" onClick={handleSaveNodeDetails}>
+              <Button type="button" onClick={saveNodeDetails}>
                 Save
               </Button>
             </div>
@@ -304,7 +314,7 @@ export function WorkflowShell() {
               </h2>
               <p className="mt-1 text-sm text-slate-500">
                 {jsonModalMode === "export"
-                  ? "Copy this snapshot to save the current workflow."
+                  ? "Copy this snapshot if you want to save or share the current flow."
                   : "Paste a saved workflow snapshot to load it into the canvas."}
               </p>
             </div>
@@ -326,11 +336,11 @@ export function WorkflowShell() {
             </div>
 
             <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
-              <Button variant="outline" type="button" onClick={handleCloseJsonModal}>
+              <Button variant="outline" type="button" onClick={closeJsonModal}>
                 Close
               </Button>
               {jsonModalMode === "import" ? (
-                <Button type="button" onClick={handleImportWorkflow}>
+                <Button type="button" onClick={importWorkflow}>
                   Load workflow
                 </Button>
               ) : null}

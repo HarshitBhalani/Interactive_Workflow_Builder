@@ -1,3 +1,3 @@
-export const APP_NAME = "interactive_workflow_builder";
+export const APP_NAME = "Interactive Workflow Builder";
 export const APP_DESCRIPTION =
-  "Interactive workflow builder web application.";
+  "A visual workflow editor for drafting approval flows, task paths, and branching logic.";

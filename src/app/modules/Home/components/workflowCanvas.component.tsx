@@ -1,22 +1,23 @@
 "use client";
 
+import type { JSX } from "react";
 import { useState } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
   Controls,
   type Connection,
-  type EdgeChange,
   type IsValidConnection,
-  type NodeChange,
+  type OnEdgesChange,
+  type OnNodesChange,
   type NodeTypes,
   type ReactFlowInstance,
   type XYPosition,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import type {
+  WorkflowCanvasNode,
   WorkflowGraphEdge,
-  WorkflowGraphNode,
   WorkflowNodeKind,
 } from "../types/workflow.type";
 import { WorkflowNode } from "./workflowNode.component";
@@ -25,18 +26,20 @@ const nodeTypes: NodeTypes = {
   workflowNode: WorkflowNode,
 };
 
-type WorkflowCanvasProps = {
-  nodes: WorkflowGraphNode[];
+export type WorkflowCanvasProps = {
+  nodes: WorkflowCanvasNode[];
   edges: WorkflowGraphEdge[];
-  onNodesChange: (changes: NodeChange[]) => void;
-  onEdgesChange: (changes: EdgeChange[]) => void;
-  onNodesDelete: (deletedNodes: WorkflowGraphNode[]) => void;
+  onNodesChange: OnNodesChange;
+  onEdgesChange: OnEdgesChange;
+  onNodesDelete: (deletedNodes: WorkflowCanvasNode[]) => void;
   onConnect: (connection: Connection) => void;
   isValidConnection: IsValidConnection;
   onDropNode: (kind: WorkflowNodeKind, position: XYPosition) => void;
 };
 
-export function WorkflowCanvas({
+type Props = WorkflowCanvasProps;
+
+function WorkflowCanvas({
   nodes,
   edges,
   onNodesChange,
@@ -45,9 +48,9 @@ export function WorkflowCanvas({
   onConnect,
   isValidConnection,
   onDropNode,
-}: WorkflowCanvasProps) {
+}: Props): JSX.Element {
   const [reactFlowInstance, setReactFlowInstance] =
-    useState<ReactFlowInstance<WorkflowGraphNode, WorkflowGraphEdge> | null>(
+    useState<ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null>(
       null
     );
 
@@ -76,7 +79,11 @@ export function WorkflowCanvas({
   }
 
   return (
-    <div className="h-full w-full" onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div
+      className="h-full w-full"
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <ReactFlow
         onInit={setReactFlowInstance}
         nodes={nodes}
@@ -106,3 +113,6 @@ export function WorkflowCanvas({
     </div>
   );
 }
+
+export { WorkflowCanvas };
+export default WorkflowCanvas;

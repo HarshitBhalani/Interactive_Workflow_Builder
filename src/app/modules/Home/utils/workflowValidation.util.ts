@@ -8,7 +8,10 @@ type WorkflowConnection = {
   sourceHandle?: string | null;
 };
 
-function findNodeById(nodes: WorkflowNode[], nodeId: string | null | undefined) {
+function findNodeById(
+  nodes: WorkflowNode[],
+  nodeId: string | null | undefined
+): WorkflowNode | undefined {
   if (!nodeId) {
     return undefined;
   }
@@ -20,7 +23,7 @@ export function isValidWorkflowConnection(
   connection: WorkflowConnection,
   nodes: WorkflowNode[],
   edges: Edge[]
-) {
+): boolean {
   const sourceNode = findNodeById(nodes, connection.source);
   const targetNode = findNodeById(nodes, connection.target);
 

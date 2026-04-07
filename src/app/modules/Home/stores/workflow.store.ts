@@ -75,6 +75,10 @@ function buildEdgeAppearance(connection: Connection) {
   };
 }
 
+function clearNodeSelection(nodes: WorkflowGraphNode[]) {
+  return nodes.map((node) => ({ ...node, selected: false }));
+}
+
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   nodes: workflowPreviewNodes,
   edges: workflowPreviewEdges,
@@ -123,7 +127,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
       return {
         nodes: [
-          ...state.nodes.map((node) => ({ ...node, selected: false })),
+          ...clearNodeSelection(state.nodes),
           nextNode,
         ],
       };
@@ -145,7 +149,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     })),
   loadWorkflowSnapshot: (snapshot) =>
     set({
-      nodes: snapshot.nodes,
+      nodes: clearNodeSelection(snapshot.nodes),
       edges: snapshot.edges,
     }),
 }));

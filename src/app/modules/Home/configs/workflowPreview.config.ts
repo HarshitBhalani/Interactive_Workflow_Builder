@@ -1,7 +1,10 @@
-import { MarkerType, type Edge, type Node } from "reactflow";
-import type { WorkflowNodeData } from "../types/workflow.type";
+import { MarkerType } from "reactflow";
+import type {
+  WorkflowGraphEdge,
+  WorkflowGraphNode,
+} from "../types/workflow.type";
 
-export const workflowPreviewNodes: Node<WorkflowNodeData>[] = [
+export const workflowPreviewNodes: WorkflowGraphNode[] = [
   {
     id: "start",
     type: "workflowNode",
@@ -54,7 +57,7 @@ export const workflowPreviewNodes: Node<WorkflowNodeData>[] = [
   },
 ];
 
-export const workflowPreviewEdges: Edge[] = [
+export const workflowPreviewEdges: WorkflowGraphEdge[] = [
   {
     id: "start-action",
     source: "start",
