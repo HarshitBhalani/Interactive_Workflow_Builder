@@ -6,6 +6,7 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   Controls,
+  MiniMap,
   type Connection,
   type IsValidConnection,
   type OnEdgesChange,
@@ -22,22 +23,37 @@ import type {
 } from "../types/workflow.type";
 import { WorkflowNode } from "./workflowNode.component";
 
+
+
+
+
 const nodeTypes: NodeTypes = {
   workflowNode: WorkflowNode,
+};
+
+const minimapNodeColorByKind: Record<WorkflowNodeKind, string> = {
+  start: "#10b981",
+  action: "#0ea5e9",
+  condition: "#f59e0b",
+  end: "#64748b",
 };
 
 export type WorkflowCanvasProps = {
   nodes: WorkflowCanvasNode[];
   edges: WorkflowGraphEdge[];
-  onNodesChange: OnNodesChange;
-  onEdgesChange: OnEdgesChange;
-  onNodesDelete: (deletedNodes: WorkflowCanvasNode[]) => void;
+  onNodesChange:OnNodesChange;
+  onEdgesChange:OnEdgesChange;
+  onNodesDelete:(deletedNodes: WorkflowCanvasNode[])=>void;
   onConnect: (connection: Connection) => void;
   isValidConnection: IsValidConnection;
   onDropNode: (kind: WorkflowNodeKind, position: XYPosition) => void;
 };
 
 type Props = WorkflowCanvasProps;
+
+function getMiniMapNodeColor(node: WorkflowCanvasNode) {
+  return minimapNodeColorByKind[node.data.kind] ?? "#64748b";
+}
 
 function WorkflowCanvas({
   nodes,
@@ -109,6 +125,16 @@ function WorkflowCanvas({
           color="#cbd5e1"
         />
         <Controls showInteractive={false} />
+        <MiniMap
+          position="bottom-right"
+          pannable
+          zoomable
+          nodeColor={getMiniMapNodeColor}
+          maskColor="rgba(15, 23, 42, 0.10)"
+          style={{ backgroundColor: "#f8fafc" }}
+          nodeStrokeWidth={3}
+          className="!bottom-4 !right-4 !h-34 !w-48 !rounded-2xl !border !border-slate-200 !bg-white !shadow-[0_10px_30px_rgba(15,23,42,0.12)]"
+        />
       </ReactFlow>
     </div>
   );

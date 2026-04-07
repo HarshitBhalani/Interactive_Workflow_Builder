@@ -25,6 +25,9 @@ import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
 import WorkflowCanvas from "./workflowCanvas.component";
 import { WorkflowHeading } from "./workflowHeading.component";
 
+
+
+
 type JsonModalMode = "export" | "import" | null;
 
 const dragDataKey = "application/workflow-node-kind";
@@ -122,8 +125,8 @@ export function WorkflowShell() {
     event: React.DragEvent<HTMLDivElement>,
     kind: WorkflowNodeKind
   ) {
-    event.dataTransfer.setData(dragDataKey, kind);
-    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData(dragDataKey,kind);
+    event.dataTransfer.effectAllowed ="move";
   }
 
   function saveNodeDetails() {

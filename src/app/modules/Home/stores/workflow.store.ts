@@ -149,7 +149,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     })),
   loadWorkflowSnapshot: (snapshot) =>
     set({
-      nodes: clearNodeSelection(snapshot.nodes),
-      edges: snapshot.edges,
+      nodes:clearNodeSelection(snapshot.nodes),
+      edges:snapshot.edges,
     }),
 }));
