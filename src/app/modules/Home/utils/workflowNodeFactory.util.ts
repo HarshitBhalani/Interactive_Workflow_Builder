@@ -21,7 +21,7 @@ export const workflowNodeCatalog: WorkflowNodeCatalogItem[] = [
     defaultSubtitle: "Add the next task",
     // helperText: "Use this for a task or handoff.",
   },
-  {
+  { 
     kind: "condition",
     badge: "Condition",
     defaultSubtitle: "Check a decision rule",

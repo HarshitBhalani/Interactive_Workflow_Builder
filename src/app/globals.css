@@ -44,3 +44,27 @@ button {
   background: rgba(14, 165, 233, 0.2);
   color: #0f172a;
 }
+
+.react-flow__edge .react-flow__edge-path {
+  transition:
+    stroke-width 180ms ease,
+    filter 180ms ease,
+    stroke 180ms ease;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 2.75px;
+  filter: drop-shadow(0 0 2px rgba(15, 23, 42, 0.16))
+    drop-shadow(0 0 10px rgba(15, 23, 42, 0.18));
+}
+
+.react-flow__edge .react-flow__edge-textwrapper {
+  transition:
+    transform 180ms ease,
+    filter 180ms ease;
+}
+
+.react-flow__edge.selected .react-flow__edge-textwrapper {
+  filter: drop-shadow(0 6px 14px rgba(15, 23, 42, 0.14));
+  transform: scale(1.03);
+}

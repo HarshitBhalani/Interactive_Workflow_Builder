@@ -21,14 +21,15 @@ import type {
   WorkflowGraphEdge,
   WorkflowNodeKind,
 } from "../types/workflow.type";
+import { WorkflowEdge } from "./workflowEdge.component";
 import { WorkflowNode } from "./workflowNode.component";
-
-
-
-
 
 const nodeTypes: NodeTypes = {
   workflowNode: WorkflowNode,
+};
+
+const edgeTypes = {
+  workflowEdge: WorkflowEdge,
 };
 
 const minimapNodeColorByKind: Record<WorkflowNodeKind, string> = {
@@ -73,6 +74,10 @@ function WorkflowCanvas({
     useState<ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null>(
       null
     );
+  const canvasEdges = edges.map((edge) => ({
+    ...edge,
+    type: edge.type ?? "workflowEdge",
+  }));
 
   function handleInit(
     instance: ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge>
@@ -114,13 +119,15 @@ function WorkflowCanvas({
       <ReactFlow
         onInit={handleInit}
         nodes={nodes}
-        edges={edges}
+        edges={canvasEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodesDelete={onNodesDelete}
         onConnect={onConnect}
         isValidConnection={isValidConnection}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        elevateEdgesOnSelect
         fitView
         fitViewOptions={{padding:0.18}}
         nodesDraggable

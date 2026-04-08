@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   Connection,
   IsValidConnection,
@@ -72,6 +72,10 @@ export function WorkflowShell() {
   const loadWorkflowSnapshot = useWorkflowStore(
     (state) => state.loadWorkflowSnapshot,
   );
+  const undo= useWorkflowStore((state)=> state.undo);
+  const redo=useWorkflowStore((state =>state.redo));
+  const canUndo=useWorkflowStore((state)=>state.canUndo);
+  const canRedo=useWorkflowStore((state)=>state.canRedo);
 
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
@@ -146,6 +150,18 @@ export function WorkflowShell() {
     connectNodes(connection);
   }
 
+  const handleUndo= useCallback(() => {
+    closeNodeEditor();
+    closeJsonModal();
+    undo();
+  },[undo]);
+
+  const handleRedo=useCallback(()=>{
+    closeNodeEditor();
+    closeJsonModal();
+    redo();
+  },[redo]);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   function handleAddNode(kind: WorkflowNodeKind) {
     if (!reactFlowInstance || !canvasContainerRef.current) {
@@ -155,10 +171,11 @@ export function WorkflowShell() {
 
     const canvasBounds = canvasContainerRef.current.getBoundingClientRect();
     const position = reactFlowInstance.screenToFlowPosition({
-      x: canvasBounds.left + canvasBounds.width / 2,
-      y: canvasBounds.top + canvasBounds.height / 2,
+      x: canvasBounds.left +canvasBounds.width / 2,
+      y: canvasBounds.top +canvasBounds.height / 2,
     });
 
+  
     addNode(kind, position);
   }
 
@@ -244,6 +261,32 @@ export function WorkflowShell() {
         return;
       }
 
+      if (
+
+
+
+        isPrimaryModifierPressed &&
+        !event.shiftKey &&
+        pressedKey === "z"
+      ) {
+        event.preventDefault();
+        handleUndo();
+        return;
+      }
+
+      if (
+        isPrimaryModifierPressed &&
+
+        (pressedKey=== "y" || (event.shiftKey && pressedKey=== "z"))
+      ) {
+
+        // else  
+        event.preventDefault();
+        handleRedo();
+
+        return;
+      }
+
       if (isPrimaryModifierPressed && pressedKey === "s") {
         event.preventDefault();
         openExportModal();
@@ -295,6 +338,9 @@ export function WorkflowShell() {
     importWorkflow,
     openExportModal,
     handleAddNode,
+
+    handleUndo,
+    handleRedo,
   ]);
 
   return (
@@ -304,6 +350,22 @@ export function WorkflowShell() {
           <WorkflowHeading />
 
           <div className="flex flex-wrap items-center gap-2">
+
+
+            <Button
+              variant="outline"
+              type="button"
+              onClick={handleUndo}
+              
+              disabled={!canUndo}>Undo</Button>
+
+            <Button
+              variant="outline"
+              type="button"
+              onClick={handleRedo}
+              
+              disabled={!canRedo}>Redo</Button>
+
             <Button variant="outline" type="button" onClick={openImportModal}>
               Import JSON
             </Button>
@@ -319,9 +381,6 @@ export function WorkflowShell() {
             <Card className="rounded-2xl">
               <CardHeader className="p-4 pb-0">
                 <CardTitle className="text-base">Node state</CardTitle>
-                {/* <CardDescription>
-                  Drag a block into the canvas or add it with one click.
-                </CardDescription> */}
               </CardHeader>
               <CardContent className="p-4">
                 <div className="grid gap-3">
@@ -461,7 +520,7 @@ export function WorkflowShell() {
                   : "Import workflow JSON"}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                {jsonModalMode === "export"
+                {jsonModalMode==="export"
                   ? "Copy this snapshot if you want to save or share the current flow."
                   : "Paste a saved workflow snapshot to load it into the canvas."}
               </p>
@@ -489,7 +548,7 @@ export function WorkflowShell() {
               </Button>
               {jsonModalMode === "import" ? (
                 <Button type="button" onClick={importWorkflow}>
-                  Load workflow
+                  Load Workflow
                 </Button>
               ) : null}
             </div>

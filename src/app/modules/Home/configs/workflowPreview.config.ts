@@ -60,6 +60,7 @@ export const workflowPreviewNodes: WorkflowGraphNode[] = [
 export const workflowPreviewEdges: WorkflowGraphEdge[] = [
   {
     id: "start-action",
+    type: "workflowEdge",
     source: "start",
     target: "action",
     markerEnd: {
@@ -73,6 +74,7 @@ export const workflowPreviewEdges: WorkflowGraphEdge[] = [
   },
   {
     id: "action-condition",
+    type: "workflowEdge",
     source: "action",
     target: "condition",
     markerEnd: {
@@ -86,6 +88,7 @@ export const workflowPreviewEdges: WorkflowGraphEdge[] = [
   },
   {
     id: "condition-yes",
+    type: "workflowEdge",
     source: "condition",
     sourceHandle: "yes",
     target: "endApproved",
@@ -105,6 +108,7 @@ export const workflowPreviewEdges: WorkflowGraphEdge[] = [
   },
   {
     id: "condition-no",
+    type: "workflowEdge",
     source: "condition",
     sourceHandle: "no",
     target: "endRejected",
