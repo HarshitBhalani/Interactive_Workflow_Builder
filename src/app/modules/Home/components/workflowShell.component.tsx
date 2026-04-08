@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { Connection, IsValidConnection, XYPosition } from "reactflow";
+import { useEffect, useRef, useState } from "react";
+import type {
+  Connection,
+  IsValidConnection,
+  ReactFlowInstance,
+  XYPosition,
+} from "reactflow";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,6 +79,10 @@ export function WorkflowShell() {
   const [workflowJson, setWorkflowJson] = useState("");
   const [jsonModalMode, setJsonModalMode] = useState<JsonModalMode>(null);
   const [jsonError, setJsonError] = useState("");
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const [reactFlowInstance, setReactFlowInstance] = useState<
+    ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null
+  >(null);
 
   const selectedNode = editingNodeId
     ? (nodes.find((node) => node.id === editingNodeId) ?? null)
@@ -139,7 +148,18 @@ export function WorkflowShell() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   function handleAddNode(kind: WorkflowNodeKind) {
-    addNode(kind);
+    if (!reactFlowInstance || !canvasContainerRef.current) {
+      addNode(kind);
+      return;
+    }
+
+    const canvasBounds = canvasContainerRef.current.getBoundingClientRect();
+    const position = reactFlowInstance.screenToFlowPosition({
+      x: canvasBounds.left + canvasBounds.width / 2,
+      y: canvasBounds.top + canvasBounds.height / 2,
+    });
+
+    addNode(kind, position);
   }
 
   function handleDropNode(kind: WorkflowNodeKind, position: XYPosition) {
@@ -350,7 +370,10 @@ export function WorkflowShell() {
                 </div>
               </div>
 
-              <div className="relative flex flex-1 overflow-hidden rounded-b-[18px] bg-[#fbfcfd]">
+              <div
+                ref={canvasContainerRef}
+                className="relative flex flex-1 overflow-hidden rounded-b-[18px] bg-[#fbfcfd]"
+              >
                 <WorkflowCanvas
                   nodes={canvasNodes}
                   edges={edges}
@@ -360,6 +383,7 @@ export function WorkflowShell() {
                   onConnect={handleConnect}
                   isValidConnection={validateConnection}
                   onDropNode={handleDropNode}
+                  onCanvasInit={setReactFlowInstance}
                 />
               </div>
             </Card>

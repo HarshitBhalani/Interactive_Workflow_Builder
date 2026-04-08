@@ -47,6 +47,9 @@ export type WorkflowCanvasProps = {
   onConnect: (connection: Connection) => void;
   isValidConnection: IsValidConnection;
   onDropNode: (kind: WorkflowNodeKind, position: XYPosition) => void;
+  onCanvasInit?: (
+    instance: ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge>
+  ) => void;
 };
 
 type Props = WorkflowCanvasProps;
@@ -64,11 +67,19 @@ function WorkflowCanvas({
   onConnect,
   isValidConnection,
   onDropNode,
+  onCanvasInit,
 }: Props): JSX.Element {
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null>(
       null
     );
+
+  function handleInit(
+    instance: ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge>
+  ) {
+    setReactFlowInstance(instance);
+    onCanvasInit?.(instance);
+  }
 
   function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -101,7 +112,7 @@ function WorkflowCanvas({
       onDrop={handleDrop}
     >
       <ReactFlow
-        onInit={setReactFlowInstance}
+        onInit={handleInit}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -111,12 +122,12 @@ function WorkflowCanvas({
         isValidConnection={isValidConnection}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.18 }}
+        fitViewOptions={{padding:0.18}}
         nodesDraggable
         nodesConnectable
         elementsSelectable
         deleteKeyCode={["Backspace", "Delete"]}
-        proOptions={{ hideAttribution: true }}
+        proOptions={{hideAttribution:true}}
       >
         <Background
           variant={BackgroundVariant.Dots}
@@ -133,7 +144,7 @@ function WorkflowCanvas({
           maskColor="rgba(15, 23, 42, 0.10)"
           style={{ backgroundColor: "#f8fafc" }}
           nodeStrokeWidth={3}
-          className="!bottom-4 !right-4 !h-34 !w-48 !rounded-2xl !border !border-slate-200 !bg-white !shadow-[0_10px_30px_rgba(15,23,42,0.12)]"
+          className="bottom-4! right-4! h-34! w-48! rounded-2xl! border! border-slate-200! bg-white! shadow-[0_10px_30px_rgba(15,23,42,0.12)]!"
         />
       </ReactFlow>
     </div>
