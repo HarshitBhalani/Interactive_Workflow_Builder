@@ -43,10 +43,11 @@ A simple visual editor for creating workflows with draggable nodes and connectio
 - Handling condition branches like `yes` and `no` correctly.
 - Making validation strict without making the editor confusing.
 
-## Potential improvements
+## Future improvements
 
-- Add automated tests for the store and utility functions.
+- Add API integration for external services.
 - Add workflow-level validation before export.
-- Add local storage or backend persistence.
-- Support more node types and richer node settings.
-- Improve edge actions and visual feedback.
+- Add reusable workflow templates.
+- Support richer node configuration.
+- Improve edge editing and controls.
+- Add automated test coverage.
