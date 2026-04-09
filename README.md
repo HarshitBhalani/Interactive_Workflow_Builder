@@ -1,6 +1,8 @@
 # Interactive Workflow Builder
 
-A simple visual editor for creating workflows with draggable nodes and connections. The app is designed to make flow building easy to understand, with support for editing nodes, validating connections, and importing or exporting the workflow as JSON.
+A simple visual editor for creating workflows with draggable nodes and connections. The app is designed to make flow building easy to understand, with support for editing nodes, validating connections, and importing or exporting the workflow as JSON. The interface direction is inspired by simple whiteboard-style tools such as Excalidraw, with a clean layout and lightweight visual structure.
+
+![Workflow Builder Design](./docs/excalidraw-screen-design.png.png)
 
 ## Stack
 
@@ -18,6 +20,7 @@ A simple visual editor for creating workflows with draggable nodes and connectio
 - Used `WorkflowCanvas` for rendering and interaction.
 - Used custom node and edge components for better readability.
 - Chose React Flow as the base for node-based editing.
+- Took light design inspiration from Excalidraw for a clean and approachable canvas feel.
 - Supported four workflow node types: start, action, condition, and end.
 
 ## State management strategy
