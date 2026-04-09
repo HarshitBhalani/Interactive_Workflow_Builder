@@ -344,46 +344,55 @@ export function WorkflowShell() {
   ]);
 
   return (
-    <main className="min-h-screen bg-[#edf0f2] px-4 py-4 text-foreground sm:px-6">
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-7xl flex-col overflow-hidden rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)]">
-        <header className="flex flex-col gap-4 border-b border-black/8 px-5 py-5 lg:flex-row lg:items-end lg:justify-between lg:px-6">
+    <main className="min-h-screen overflow-x-clip bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4">
+      <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-7xl flex-col overflow-hidden rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)] sm:min-h-[calc(100vh-2rem)]">
+        <header className="flex flex-col gap-4 border-b border-black/8 px-4 py-4 sm:px-5 sm:py-5 lg:flex-row lg:items-end lg:justify-between lg:px-6">
           <WorkflowHeading />
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
 
 
             <Button
               variant="outline"
               type="button"
               onClick={handleUndo}
-              
+              className="w-full sm:w-auto"
               disabled={!canUndo}>Undo</Button>
 
             <Button
               variant="outline"
               type="button"
               onClick={handleRedo}
-              
+              className="w-full sm:w-auto"
               disabled={!canRedo}>Redo</Button>
 
-            <Button variant="outline" type="button" onClick={openImportModal}>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={openImportModal}
+              className="w-full sm:w-auto"
+            >
               Import JSON
             </Button>
 
-            <Button type="button" onClick={openExportModal}>
+            <Button
+              type="button"
+              onClick={openExportModal}
+              className="col-span-2 w-full sm:col-span-1 sm:w-auto"
+            >
               Export JSON
             </Button>
           </div>
         </header>
 
         <section className="grid flex-1 gap-0 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="border-b border-black/8 bg-[#f6f8f9] p-5 lg:border-r lg:border-b-0">
+          <aside className="border-b border-black/8 bg-[#f6f8f9] p-4 sm:p-5 lg:border-r lg:border-b-0">
             <Card className="rounded-2xl">
               <CardHeader className="p-4 pb-0">
                 <CardTitle className="text-base">Node state</CardTitle>
               </CardHeader>
               <CardContent className="p-4">
-                <div className="grid gap-3">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                   {workflowNodeCatalog.map((nodeItem) => (
                     <div
                       key={nodeItem.kind}
@@ -414,16 +423,16 @@ export function WorkflowShell() {
             </Card>
           </aside>
 
-          <div className="bg-[#f1f4f5] p-5 lg:p-6">
-            <Card className="flex h-full min-h-105 flex-col rounded-[18px]">
-              <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="bg-[#f1f4f5] p-3 sm:p-5 lg:p-6">
+            <Card className="flex h-full min-h-[65vh] flex-col rounded-[18px] sm:min-h-[70vh] lg:min-h-0">
+              <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                 <div>
                   <CardTitle>Workflow canvas</CardTitle>
                   <CardDescription className="mt-1">
                     Make a workflow
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
                   <Badge variant="outline">{nodes.length} nodes</Badge>
                   <Badge variant="outline">{edges.length} links</Badge>
                 </div>
@@ -431,7 +440,7 @@ export function WorkflowShell() {
 
               <div
                 ref={canvasContainerRef}
-                className="relative flex flex-1 overflow-hidden rounded-b-[18px] bg-[#fbfcfd]"
+                className="relative flex min-h-[55vh] flex-1 overflow-hidden rounded-b-[18px] bg-[#fbfcfd] sm:min-h-[60vh] lg:min-h-0"
               >
                 <WorkflowCanvas
                   nodes={canvasNodes}
@@ -451,8 +460,8 @@ export function WorkflowShell() {
       </div>
 
       {editingNodeId ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-3 sm:px-4">
+          <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)] sm:max-h-[calc(100vh-2rem)]">
             <div className="border-b border-slate-200 px-5 py-4">
               <h2 className="text-lg font-semibold text-slate-950">
                 Edit node
@@ -511,8 +520,8 @@ export function WorkflowShell() {
       ) : null}
 
       {jsonModalMode ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-3 sm:px-4">
+          <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)] sm:max-h-[calc(100vh-2rem)]">
             <div className="border-b border-slate-200 px-5 py-4">
               <h2 className="text-lg font-semibold text-slate-950">
                 {jsonModalMode === "export"
@@ -532,7 +541,7 @@ export function WorkflowShell() {
                 onChange={(event) => setWorkflowJson(event.target.value)}
                 readOnly={jsonModalMode === "export"}
                 rows={16}
-                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                className="min-h-[320px] w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 outline-none transition focus:border-slate-400 sm:resize-none"
               />
 
               {jsonError ? (

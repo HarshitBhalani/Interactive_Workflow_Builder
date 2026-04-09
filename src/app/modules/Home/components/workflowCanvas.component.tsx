@@ -1,7 +1,7 @@
 "use client";
 
 import type { JSX } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -74,10 +74,29 @@ function WorkflowCanvas({
     useState<ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null>(
       null
     );
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const canvasEdges = edges.map((edge) => ({
     ...edge,
     type: edge.type ?? "workflowEdge",
   }));
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const syncViewport = (event?: MediaQueryListEvent) => {
+      setIsCompactViewport(event?.matches ?? mediaQuery.matches);
+    };
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncViewport);
+    };
+  }, []);
 
   function handleInit(
     instance: ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge>
@@ -112,7 +131,7 @@ function WorkflowCanvas({
 
   return (
     <div
-      className="h-full w-full"
+      className="h-full w-full touch-none"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
@@ -129,12 +148,15 @@ function WorkflowCanvas({
         edgeTypes={edgeTypes}
         elevateEdgesOnSelect
         fitView
-        fitViewOptions={{padding:0.18}}
+        fitViewOptions={{ padding: isCompactViewport ? 0.12 : 0.18 }}
         nodesDraggable
         nodesConnectable
         elementsSelectable
+        panOnDrag
+        zoomOnPinch
+        zoomOnScroll={!isCompactViewport}
         deleteKeyCode={["Backspace", "Delete"]}
-        proOptions={{hideAttribution:true}}
+        proOptions={{ hideAttribution: true }}
       >
         <Background
           variant={BackgroundVariant.Dots}
@@ -142,17 +164,19 @@ function WorkflowCanvas({
           size={1.1}
           color="#cbd5e1"
         />
-        <Controls showInteractive={false} />
-        <MiniMap
-          position="bottom-right"
-          pannable
-          zoomable
-          nodeColor={getMiniMapNodeColor}
-          maskColor="rgba(15, 23, 42, 0.10)"
-          style={{ backgroundColor: "#f8fafc" }}
-          nodeStrokeWidth={3}
-          className="bottom-4! right-4! h-34! w-48! rounded-2xl! border! border-slate-200! bg-white! shadow-[0_10px_30px_rgba(15,23,42,0.12)]!"
-        />
+        {!isCompactViewport ? <Controls showInteractive={false} /> : null}
+        {!isCompactViewport ? (
+          <MiniMap
+            position="bottom-right"
+            pannable
+            zoomable
+            nodeColor={getMiniMapNodeColor}
+            maskColor="rgba(15, 23, 42, 0.10)"
+            style={{ backgroundColor: "#f8fafc" }}
+            nodeStrokeWidth={3}
+            className="bottom-4! right-4! h-34! w-48! rounded-2xl! border! border-slate-200! bg-white! shadow-[0_10px_30px_rgba(15,23,42,0.12)]!"
+          />
+        ) : null}
       </ReactFlow>
     </div>
   );
