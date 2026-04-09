@@ -65,6 +65,7 @@ export function WorkflowShell() {
     (state) => state.handleNodesDelete,
   );
   const addNode = useWorkflowStore((state) => state.addNode);
+  const pasteNode = useWorkflowStore((state) => state.pasteNode);
   const connectNodes = useWorkflowStore((state) => state.connectNodes);
   const updateNodeDetails = useWorkflowStore(
     (state) => state.updateNodeDetails,
@@ -84,6 +85,8 @@ export function WorkflowShell() {
   const [jsonModalMode, setJsonModalMode] = useState<JsonModalMode>(null);
   const [jsonError, setJsonError] = useState("");
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const copiedNodeRef = useRef<WorkflowGraphNode | null>(null);
+  const pasteCountRef = useRef(0);
   const [reactFlowInstance, setReactFlowInstance] = useState<
     ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null
   >(null);
@@ -91,6 +94,8 @@ export function WorkflowShell() {
   const selectedNode = editingNodeId
     ? (nodes.find((node) => node.id === editingNodeId) ?? null)
     : null;
+  const selectedCanvasNode =
+    nodes.find((node) => node.selected) ?? null;
 
   const canvasNodes: WorkflowCanvasNode[] = nodes.map((node) => ({
     ...node,
@@ -182,6 +187,36 @@ export function WorkflowShell() {
   function handleDropNode(kind: WorkflowNodeKind, position: XYPosition) {
     addNode(kind, position);
   }
+
+  const handleCopyNode = useCallback(() => {
+    if (!selectedCanvasNode) {
+      return;
+    }
+
+    copiedNodeRef.current = {
+      ...selectedCanvasNode,
+      position: { ...selectedCanvasNode.position },
+      data: { ...selectedCanvasNode.data },
+    };
+    pasteCountRef.current = 0;
+  }, [selectedCanvasNode]);
+
+  const handlePasteNode = useCallback(() => {
+    const copiedNode = copiedNodeRef.current;
+
+    if (!copiedNode) {
+      return;
+    }
+
+    pasteCountRef.current += 1;
+
+    const position = {
+      x: copiedNode.position.x + pasteCountRef.current * 40,
+      y: copiedNode.position.y + pasteCountRef.current * 40,
+    };
+
+    pasteNode(copiedNode, position);
+  }, [pasteNode]);
 
   function handleNodeTypeDragStart(
     event: React.DragEvent<HTMLDivElement>,
@@ -293,6 +328,26 @@ export function WorkflowShell() {
         return;
       }
 
+      if (isPrimaryModifierPressed && pressedKey === "c") {
+        if (!selectedCanvasNode) {
+          return;
+        }
+
+        event.preventDefault();
+        handleCopyNode();
+        return;
+      }
+
+      if (isPrimaryModifierPressed && pressedKey === "v") {
+        if (!copiedNodeRef.current) {
+          return;
+        }
+
+        event.preventDefault();
+        handlePasteNode();
+        return;
+      }
+
       if (isPrimaryModifierPressed && pressedKey === "o") {
         event.preventDefault();
         openImportModal();
@@ -334,11 +389,13 @@ export function WorkflowShell() {
     jsonModalMode,
     nodes,
     edges,
+    selectedCanvasNode,
     saveNodeDetails,
     importWorkflow,
     openExportModal,
     handleAddNode,
-
+    handleCopyNode,
+    handlePasteNode,
     handleUndo,
     handleRedo,
   ]);
@@ -541,7 +598,7 @@ export function WorkflowShell() {
                 onChange={(event) => setWorkflowJson(event.target.value)}
                 readOnly={jsonModalMode === "export"}
                 rows={16}
-                className="min-h-[320px] w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 outline-none transition focus:border-slate-400 sm:resize-none"
+                className="min-h-80 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 outline-none transition focus:border-slate-400 sm:resize-none"
               />
 
               {jsonError ? (

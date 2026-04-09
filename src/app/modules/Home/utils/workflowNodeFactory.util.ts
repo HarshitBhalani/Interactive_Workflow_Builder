@@ -48,7 +48,24 @@ const nodeContentByKind = workflowNodeCatalog.reduce<
 }, {} as Record<WorkflowNodeKind, Omit<WorkflowNodeCatalogItem, "kind">>);
 
 function getNextNodeNumber(kind: WorkflowNodeKind, nodes: WorkflowGraphNode[]) {
-  return nodes.filter((node) => node.data.kind === kind).length + 1;
+  const takenNumbers = new Set(
+    nodes
+      .filter((node) => node.data.kind === kind)
+      .map((node) => {
+        const match = node.id.match(new RegExp(`^${kind}-(\\d+)$`));
+
+        return match ? Number(match[1]) : null;
+      })
+      .filter((value): value is number => value !== null),
+  );
+
+  let nextNumber = 1;
+
+  while (takenNumbers.has(nextNumber)) {
+    nextNumber += 1;
+  }
+
+  return nextNumber;
 }
 
 function getNextNodePosition(nodes: WorkflowGraphNode[]) {
@@ -77,6 +94,24 @@ export function createWorkflowNode(
       title: nodeContent.badge,
       subtitle: nodeContent.defaultSubtitle,
       kind,
+    },
+  };
+}
+
+export function createWorkflowNodeCopy(
+  nodeToCopy: WorkflowGraphNode,
+  nodes: WorkflowGraphNode[],
+  position?: XYPosition,
+): WorkflowGraphNode {
+  const nodeNumber = getNextNodeNumber(nodeToCopy.data.kind, nodes);
+
+  return {
+    ...nodeToCopy,
+    id: `${nodeToCopy.data.kind}-${nodeNumber}`,
+    position: position ?? nodeToCopy.position,
+    selected: true,
+    data: {
+      ...nodeToCopy.data,
     },
   };
 }

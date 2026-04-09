@@ -1,14 +1,6 @@
 # Interactive Workflow Builder
 
-A small visual editor for assembling approval flows and branching workflows. The app lets you place nodes on a canvas, connect them with simple guardrails, edit labels inline, and import or export the current graph as JSON.
-
-## What the project covers
-
-- drag-and-drop node creation with React Flow
-- typed workflow state with Zustand and TypeScript
-- inline editing for node labels and descriptions
-- JSON import/export for saving and restoring workflows
-- connection rules for start, end, and condition branches
+A simple visual editor for creating workflows with draggable nodes and connections. The app is designed to make flow building easy to understand, with support for editing nodes, validating connections, and importing or exporting the workflow as JSON.
 
 ## Stack
 
@@ -19,24 +11,35 @@ A small visual editor for assembling approval flows and branching workflows. The
 - React Flow
 - Zustand
 
-## Running locally
+## Approach and design decisions
 
-```bash
-npm install
-npm run dev
-```
+- Kept the workflow builder simple, visual, and easy to use.
+- Split the app into focused components with clear responsibilities.
+- Used `WorkflowCanvas` for rendering and interaction.
+- Used custom node and edge components for better readability.
+- Chose React Flow as the base for node-based editing.
+- Supported four workflow node types: start, action, condition, and end.
 
-Open `http://localhost:3000`.
+## State management strategy
 
-## Notes on implementation
+- Used Zustand for centralized workflow state management.
+- Stored nodes, edges, editing actions, and history in one place.
+- Kept UI components lighter by moving workflow logic into the store.
+- Used snapshots for undo and redo history.
+- Reused the same snapshot shape for import and export.
 
-- Graph state lives in a dedicated store so canvas interactions stay out of the page-level UI.
-- The node catalog is centralized, which keeps the sidebar, node creation, and default labels in sync.
-- JSON import is validated before state is loaded so malformed payloads fail fast with a readable error.
+## Challenges encountered
 
-## Possible next steps
+- Managing drag and drop, editing, keyboard shortcuts, and history together.
+- Keeping the canvas logic clean and maintainable.
+- Preventing invalid workflow connections.
+- Handling condition branches like `yes` and `no` correctly.
+- Making validation strict without making the editor confusing.
 
-- add undo/redo support
-- add workflow-level validation before export
-- add tests for validation and persistence helpers
-- add keyboard shortcuts for common canvas actions
+## Potential improvements
+
+- Add automated tests for the store and utility functions.
+- Add workflow-level validation before export.
+- Add local storage or backend persistence.
+- Support more node types and richer node settings.
+- Improve edge actions and visual feedback.

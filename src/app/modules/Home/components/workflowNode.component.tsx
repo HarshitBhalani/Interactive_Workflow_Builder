@@ -14,12 +14,12 @@ export function WorkflowNode({
   id,
   data,
   selected,
-}: NodeProps<WorkflowNodeData>) {
-  const isCondition = data.kind === "condition";
+}: NodeProps<WorkflowNodeData>){
+  const isCondition = data.kind==="condition";
 
   return (
     <div
-      className={`w-[220px] max-w-[75vw] rounded-2xl border bg-white p-4 transition-shadow sm:w-[240px] ${
+      className={`w-55 max-w-[75vw] rounded-2xl border bg-white p-4 transition-shadow sm:w-60 ${
         selected
           ? "border-slate-900 shadow-[0_0_0_2px_rgba(15,23,42,0.08),0_14px_30px_rgba(15,23,42,0.16)]"
           : "border-slate-200 shadow-[0_10px_24px_rgba(15,23,42,0.08)]"

@@ -23,7 +23,10 @@ import type {
   WorkflowSnapshot,
 } from "../types/workflow.type";
 import { createWorkflowSnapshot } from "../utils/workflowPersistence.util";
-import { createWorkflowNode } from "../utils/workflowNodeFactory.util";
+import {
+  createWorkflowNode,
+  createWorkflowNodeCopy,
+} from "../utils/workflowNodeFactory.util";
 import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
 
 const MAX_HISTORY_LENGTH = 50;
@@ -41,11 +44,12 @@ type WorkflowStore = {
   handleNodesDelete: (deletedNodes: WorkflowGraphNode[]) => void;
   connectNodes: (connection: Connection) => void;
   addNode: (kind: WorkflowNodeKind, position?: XYPosition) => void;
+  pasteNode: (node: WorkflowGraphNode, position?: XYPosition) => void;
   updateNodeDetails: (
     nodeId: string,
     payload: { title: string; subtitle: string },
   ) => void;
-  loadWorkflowSnapshot: (snapshot: WorkflowSnapshot) => void;
+  loadWorkflowSnapshot: (snapshot: WorkflowSnapshot) =>void;
   undo: () => void;
   redo: () => void;
 };
@@ -266,6 +270,24 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         buildSnapshot(state.nodes, state.edges),
         buildSnapshot(nextNodes, state.edges),
         state.past,
+      );
+    }),
+
+  pasteNode: (node, position) =>
+    set((state) => {
+
+
+
+      const nextNode = createWorkflowNodeCopy(node, state.nodes, position);
+
+      const nextNodes = [...clearNodeSelection(state.nodes), nextNode];
+
+      return buildHistoryState(
+
+        buildSnapshot(state.nodes, state.edges),
+        buildSnapshot(nextNodes, state.edges),
+        state.past,
+
       );
     }),
 
