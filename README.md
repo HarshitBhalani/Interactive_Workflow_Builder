@@ -4,6 +4,10 @@ A simple visual editor for creating workflows with draggable nodes and connectio
 
 ![Workflow Builder Design](./docs/excalidraw-screen-design.png.png)
 
+## Live Preview
+
+- https://interactive-workflow-builder.vercel.app/
+
 ## Stack
 
 - Next.js 16
