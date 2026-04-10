@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow"; //bcaz Zustand me object selector use karte time unnecessary re-render avoid karne ke liye
 import type {
   Connection,
   IsValidConnection,
@@ -35,14 +36,30 @@ import { WorkflowHeading } from "./workflowHeading.component";
 
 type JsonModalMode = "export" | "import" | null;
 
-const dragDataKey = "application/workflow-node-kind";
+type NodeEditorState ={
+  editingNodeId:string | null;
+  draftTitle:string;
+  draftSubtitle:string;
+};
+
+type JsonModalState={
+  mode: JsonModalMode;
+  workflowJson:string;
+  jsonError:string;
+};
+
+type CanvasState ={
+  reactFlowInstance:ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null;
+};
+
+const dragDataKey="application/workflow-node-kind";
 
 function isTypingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
     return false;
   }
 
-  const tagName = target.tagName.toLowerCase();
+  const tagName = target.tagName.toLowerCase(); 
 
   return (
     tagName === "input" ||
@@ -53,49 +70,76 @@ function isTypingTarget(target: EventTarget | null) {
 }
 
 export function WorkflowShell() {
-  const nodes: WorkflowGraphNode[] = useWorkflowStore((state) => state.nodes);
-  const edges: WorkflowGraphEdge[] = useWorkflowStore((state) => state.edges);
-  const handleNodesChange = useWorkflowStore(
-    (state) => state.handleNodesChange,
-  );
-  const handleEdgesChange = useWorkflowStore(
-    (state) => state.handleEdgesChange,
-  );
-  const handleNodesDelete = useWorkflowStore(
-    (state) => state.handleNodesDelete,
-  );
-  const addNode = useWorkflowStore((state) => state.addNode);
-  const pasteNode = useWorkflowStore((state) => state.pasteNode);
-  const connectNodes = useWorkflowStore((state) => state.connectNodes);
-  const updateNodeDetails = useWorkflowStore(
-    (state) => state.updateNodeDetails,
-  );
-  const loadWorkflowSnapshot = useWorkflowStore(
-    (state) => state.loadWorkflowSnapshot,
-  );
-  const undo= useWorkflowStore((state)=> state.undo);
-  const redo=useWorkflowStore((state =>state.redo));
-  const canUndo=useWorkflowStore((state)=>state.canUndo);
-  const canRedo=useWorkflowStore((state)=>state.canRedo);
 
-  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftSubtitle, setDraftSubtitle] = useState("");
-  const [workflowJson, setWorkflowJson] = useState("");
-  const [jsonModalMode, setJsonModalMode] = useState<JsonModalMode>(null);
-  const [jsonError, setJsonError] = useState("");
+
+  const workflowStore = useWorkflowStore(
+
+    useShallow((state) => ({
+      nodes: state.nodes,
+      edges: state.edges,
+      handleNodesChange: state.handleNodesChange,
+      handleEdgesChange: state.handleEdgesChange,
+      handleNodesDelete: state.handleNodesDelete,
+      addNode: state.addNode,
+      pasteNode: state.pasteNode,
+      connectNodes: state.connectNodes,
+      updateNodeDetails: state.updateNodeDetails,
+      loadWorkflowSnapshot: state.loadWorkflowSnapshot,
+      undo: state.undo,
+      redo: state.redo,
+      canUndo: state.canUndo,
+      canRedo: state.canRedo,
+
+    })),
+
+  );
+
+  const {
+    nodes,
+    edges,
+    handleNodesChange,
+    handleEdgesChange,
+    handleNodesDelete,
+    addNode,
+    pasteNode,
+    connectNodes,
+    updateNodeDetails,
+    loadWorkflowSnapshot,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  } = workflowStore;
+
+  const [nodeEditor,setNodeEditor] = useState<NodeEditorState>({ 
+    editingNodeId: null,
+    draftTitle: "",
+    draftSubtitle: "",
+
+  });
+
+  const [jsonModal, setJsonModal] =useState<JsonModalState>({
+    mode: null,
+    workflowJson: "",
+    jsonError: "",
+  });
+
+  const [canvasState, setCanvasState]= useState<CanvasState>({
+    reactFlowInstance: null,
+  });
+
+
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const copiedNodeRef = useRef<WorkflowGraphNode | null>(null);
   const pasteCountRef = useRef(0);
-  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null>(null);
 
-  const selectedNode = editingNodeId
-    ? (nodes.find((node) => node.id === editingNodeId) ?? null)
-    : null;
-  const selectedCanvasNode =
-    nodes.find((node) => node.selected) ?? null;
+  const selectedNode =nodeEditor.editingNodeId
+    ? (nodes.find((node)=>node.id===nodeEditor.editingNodeId) ?? null) : null;
 
-  const canvasNodes: WorkflowCanvasNode[] = nodes.map((node) => ({
+
+  const selectedCanvasNode =nodes.find((node) => node.selected) ?? null;
+
+  const canvasNodes: WorkflowCanvasNode[]=nodes.map((node) => ({
     ...node,
     data: {
       ...node.data,
@@ -104,10 +148,9 @@ export function WorkflowShell() {
     },
   }));
 
-  const validateConnection: IsValidConnection = (connection) =>
-    isValidWorkflowConnection(connection, nodes, edges);
+  const validateConnection: IsValidConnection = (connection) => isValidWorkflowConnection(connection, nodes, edges);
 
-  function handleCanvasNodesDelete(deletedNodes: WorkflowCanvasNode[]) {
+  function handleCanvasNodesDelete(deletedNodes: WorkflowCanvasNode[]){
     handleNodesDelete(deletedNodes);
   }
 
@@ -118,25 +161,31 @@ export function WorkflowShell() {
       return;
     }
 
-    setEditingNodeId(nodeId);
-    setDraftTitle(node.data.title);
-    setDraftSubtitle(node.data.subtitle);
+    setNodeEditor(
+      {
+      editingNodeId: nodeId,
+      draftTitle: node.data.title,
+      draftSubtitle: node.data.subtitle,
+    }
+    );
   }
 
-  function closeNodeEditor() {
-    setEditingNodeId(null);
-    setDraftTitle("");
-    setDraftSubtitle("");
+  function closeNodeEditor(){
+    setNodeEditor({
+      editingNodeId:null,
+      draftTitle: "",
+      draftSubtitle: "",
+    });
   }
 
-  function deleteNode(nodeId: string) {
-    const node = nodes.find((currentNode) => currentNode.id === nodeId);
+  function deleteNode(nodeId:string) {
+    const node = nodes.find((currentNode) => currentNode.id===nodeId);
 
-    if (!node) {
+    if (!node){
       return;
     }
 
-    if (editingNodeId === nodeId) {
+    if (nodeEditor.editingNodeId===nodeId) {
       closeNodeEditor();
     }
 
@@ -147,25 +196,43 @@ export function WorkflowShell() {
   function openExportModal() {
     const snapshot: WorkflowSnapshot = createWorkflowSnapshot(nodes, edges);
 
-    setWorkflowJson(JSON.stringify(snapshot,null,2));
-    setJsonError("");
-    setJsonModalMode("export");
+
+    setJsonModal({
+      mode: "export",
+      workflowJson: JSON.stringify(snapshot,null,2),
+      jsonError: "",
+
+    });
   }
 
   function openImportModal() {
-    setWorkflowJson("");
-    setJsonError("");
-    setJsonModalMode("import");
+    setJsonModal({
+
+      mode: "import",
+      workflowJson: "",
+      jsonError: "",
+    });
   }
 
-  function closeJsonModal() {
-    setJsonModalMode(null);
-    setWorkflowJson("");
-    setJsonError("");
+  function closeJsonModal(){
+
+    setJsonModal({
+      mode: null,
+      workflowJson: "",
+      jsonError: "",
+    });
   }
 
   function handleConnect(connection: Connection) {
     connectNodes(connection);
+  }
+
+  function handleCanvasInit(
+    instance:ReactFlowInstance<WorkflowCanvasNode,WorkflowGraphEdge>
+  ) {
+    setCanvasState({ //because reactFlowInstance in handleAddNode function to calculate the position of new node based on canvas center
+      reactFlowInstance:instance,
+    });
   }
 
   const handleUndo= useCallback(() => {
@@ -182,13 +249,13 @@ export function WorkflowShell() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   function handleAddNode(kind: WorkflowNodeKind) {
-    if (!reactFlowInstance || !canvasContainerRef.current) {
+    if(!canvasState.reactFlowInstance || !canvasContainerRef.current) {
       addNode(kind);
       return;
     }
 
     const canvasBounds = canvasContainerRef.current.getBoundingClientRect();
-    const position = reactFlowInstance.screenToFlowPosition({
+    const position = canvasState.reactFlowInstance.screenToFlowPosition({
       x: canvasBounds.left +canvasBounds.width / 2,
       y: canvasBounds.top +canvasBounds.height / 2,
     });
@@ -241,13 +308,13 @@ export function WorkflowShell() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   function saveNodeDetails() {
-    if (!editingNodeId) {
+    if (!nodeEditor.editingNodeId) {
       return;
     }
 
-    updateNodeDetails(editingNodeId, {
-      title: draftTitle.trim() || "Untitled node",
-      subtitle: draftSubtitle.trim() || "Add a short description",
+    updateNodeDetails(nodeEditor.editingNodeId, {
+      title: nodeEditor.draftTitle.trim() || "Untitled node",
+      subtitle: nodeEditor.draftSubtitle.trim() || "Add a short description",
     });
 
     closeNodeEditor();
@@ -256,17 +323,21 @@ export function WorkflowShell() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   function importWorkflow() {
     try {
-      const snapshot = parseWorkflowSnapshot(workflowJson);
+      const snapshot = parseWorkflowSnapshot(jsonModal.workflowJson);
 
       loadWorkflowSnapshot(snapshot);
       closeJsonModal();
       closeNodeEditor();
     } catch (error) {
-      setJsonError(
-        error instanceof Error
-          ? error.message
-          : "Could not import the workflow JSON.",
-      );
+      setJsonModal((currentModal) => (
+        {
+        ...currentModal,
+        jsonError:
+          error instanceof Error
+            ? error.message
+            : "Could not import the workflow JSON.",
+        }
+    ));
     }
   }
 
@@ -274,17 +345,16 @@ export function WorkflowShell() {
     function handleKeyDown(event: KeyboardEvent) {
       const pressedKey = event.key.toLowerCase();
       const isPrimaryModifierPressed = event.ctrlKey || event.metaKey;
-      const isEditorOpen = editingNodeId !== null || jsonModalMode !== null;
+      const isEditorOpen = nodeEditor.editingNodeId !== null || jsonModal.mode !== null; //because both node editor and json modal are considered as "editor" in this context
       const isTyping = isTypingTarget(event.target);
 
       switch(pressedKey){
         case "escape":
-          if (editingNodeId !==null){
+          if (nodeEditor.editingNodeId !==null){
             closeNodeEditor();
           }
 
-          if (jsonModalMode !==null){
-
+          if (jsonModal.mode !==null){
             closeJsonModal();
           }
 
@@ -293,13 +363,13 @@ export function WorkflowShell() {
 
         case "enter":
           if(isTyping  && isPrimaryModifierPressed){
-            if(editingNodeId !==null){
+            if(nodeEditor.editingNodeId !==null){
 
               event.preventDefault();
               saveNodeDetails();
             }
 
-            if(jsonModalMode==="import") {
+            if(jsonModal.mode==="import") {
               event.preventDefault();
 
               importWorkflow();
@@ -350,6 +420,7 @@ export function WorkflowShell() {
 
           case "c":
             if(selectedCanvasNode) {
+
               event.preventDefault();
               handleCopyNode();
             }
@@ -408,9 +479,11 @@ export function WorkflowShell() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [
-    editingNodeId,
-    jsonModalMode,
+  }, 
+  
+  [
+    nodeEditor.editingNodeId,
+    jsonModal.mode,
     nodes,
     edges,
     selectedCanvasNode,
@@ -422,7 +495,8 @@ export function WorkflowShell() {
     handlePasteNode,
     handleUndo,
     handleRedo,
-  ]);
+  ]
+);
 
   return (
     <main className="min-h-screen overflow-x-clip bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4">
@@ -532,7 +606,7 @@ export function WorkflowShell() {
                   onConnect={handleConnect}
                   isValidConnection={validateConnection}
                   onDropNode={handleDropNode}
-                  onCanvasInit={setReactFlowInstance}
+                  onCanvasInit={handleCanvasInit}
                 />
               </div>
             </Card>
@@ -540,7 +614,7 @@ export function WorkflowShell() {
         </section>
       </div>
 
-      {editingNodeId ? (
+      {nodeEditor.editingNodeId ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-3 sm:px-4">
           <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)] sm:max-h-[calc(100vh-2rem)]">
             <div className="border-b border-slate-200 px-5 py-4">
@@ -565,8 +639,15 @@ export function WorkflowShell() {
                 <input
                   id="edit-node-title"
                   type="text"
-                  value={draftTitle}
-                  onChange={(event) => setDraftTitle(event.target.value)}
+                  value={nodeEditor.draftTitle}
+
+                  onChange={(event) =>
+                    setNodeEditor((currentEditor) => ({
+                      ...currentEditor,
+                      draftTitle: event.target.value,
+                    }))
+
+                  }
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                 />
               </div>
@@ -580,8 +661,15 @@ export function WorkflowShell() {
                 </label>
                 <textarea
                   id="edit-node-subtitle"
-                  value={draftSubtitle}
-                  onChange={(event) => setDraftSubtitle(event.target.value)}
+                  value={nodeEditor.draftSubtitle}
+
+                  onChange={(event) =>
+                    setNodeEditor((currentEditor) => ({
+                      ...currentEditor,
+                      draftSubtitle: event.target.value,
+                    }))
+
+                  }
                   rows={4}
                   className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                 />
@@ -600,17 +688,17 @@ export function WorkflowShell() {
         </div>
       ) : null}
 
-      {jsonModalMode ? (
+      {jsonModal.mode ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-3 sm:px-4">
           <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)] sm:max-h-[calc(100vh-2rem)]">
             <div className="border-b border-slate-200 px-5 py-4">
               <h2 className="text-lg font-semibold text-slate-950">
-                {jsonModalMode === "export"
+                {jsonModal.mode === "export"
                   ? "Export workflow JSON"
                   : "Import workflow JSON"}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                {jsonModalMode==="export"
+                {jsonModal.mode==="export"
                   ? "Copy this snapshot if you want to save or share the current flow."
                   : "Paste a saved workflow snapshot to load it into the canvas."}
               </p>
@@ -618,16 +706,23 @@ export function WorkflowShell() {
 
             <div className="space-y-4 px-5 py-5">
               <textarea
-                value={workflowJson}
-                onChange={(event) => setWorkflowJson(event.target.value)}
-                readOnly={jsonModalMode === "export"}
+                value={jsonModal.workflowJson}
+
+                onChange={(event) =>
+                  setJsonModal((currentModal) => ({
+                    ...currentModal,
+                    workflowJson: event.target.value,
+                  }))
+                  
+                }
+                readOnly={jsonModal.mode === "export"}
                 rows={16}
                 className="min-h-80 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 outline-none transition focus:border-slate-400 sm:resize-none"
               />
 
-              {jsonError ? (
+              {jsonModal.jsonError ? (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                  {jsonError}
+                  {jsonModal.jsonError}
                 </div>
               ) : null}
             </div>
@@ -636,7 +731,7 @@ export function WorkflowShell() {
               <Button variant="outline" type="button" onClick={closeJsonModal}>
                 Close
               </Button>
-              {jsonModalMode === "import" ? (
+              {jsonModal.mode === "import" ? (
                 <Button type="button" onClick={importWorkflow}>
                   Load Workflow
                 </Button>
