@@ -102,6 +102,7 @@ export function WorkflowShell() {
     data: {
       ...node.data,
       onEdit: openNodeEditor,
+      onDelete: deleteNode,
     },
   }));
 
@@ -128,6 +129,20 @@ export function WorkflowShell() {
     setEditingNodeId(null);
     setDraftTitle("");
     setDraftSubtitle("");
+  }
+
+  function deleteNode(nodeId: string) {
+    const node = nodes.find((currentNode) => currentNode.id === nodeId);
+
+    if (!node) {
+      return;
+    }
+
+    if (editingNodeId === nodeId) {
+      closeNodeEditor();
+    }
+
+    handleNodesDelete([node]);
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps

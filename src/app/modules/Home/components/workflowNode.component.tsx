@@ -37,14 +37,53 @@ export function WorkflowNode({
         >
           {data.title}
         </div>
-        <button
-          type="button"
-          onClick={() => data.onEdit?.(id)}
-          className="nodrag nopan rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-        >
-          Edit
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            aria-label={`Edit ${data.title}`}
+            title="Edit node"
+            onClick={() => data.onEdit?.(id)}
+            className="nodrag nopan cursor-pointer rounded-md border border-slate-200 p-1.5 text-blue-600 transition hover:bg-slate-50"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            aria-label={`Delete ${data.title}`}
+            title="Delete node"
+            onClick={() => data.onDelete?.(id)}
+            className="nodrag nopan cursor-pointer rounded-md border border-slate-200 p-1.5 text-red-600 transition hover:bg-slate-50"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
+
       <p className="mt-3 text-sm leading-6 text-slate-600">{data.subtitle}</p>
 
       {selected ? (

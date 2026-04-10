@@ -7,11 +7,13 @@ export type WorkflowNodeData = {
   subtitle: string;
   kind: WorkflowNodeKind;
   onEdit?: (nodeId: string) => void;
+  onDelete?: (nodeId: string) => void;
 };
 
 export type WorkflowGraphNode = Node<WorkflowNodeData>;
 export type WorkflowEditorNodeData = WorkflowNodeData & {
   onEdit: (nodeId: string) => void;
+  onDelete: (nodeId: string) => void;
 };
 export type WorkflowCanvasNode = Node<WorkflowEditorNodeData>;
 export type WorkflowGraphEdge = Edge;
