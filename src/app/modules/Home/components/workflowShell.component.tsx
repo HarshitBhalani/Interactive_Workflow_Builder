@@ -87,9 +87,7 @@ export function WorkflowShell() {
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const copiedNodeRef = useRef<WorkflowGraphNode | null>(null);
   const pasteCountRef = useRef(0);
-  const [reactFlowInstance, setReactFlowInstance] = useState<
-    ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null
-  >(null);
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null>(null);
 
   const selectedNode = editingNodeId
     ? (nodes.find((node) => node.id === editingNodeId) ?? null)
@@ -277,120 +275,131 @@ export function WorkflowShell() {
       const pressedKey = event.key.toLowerCase();
       const isPrimaryModifierPressed = event.ctrlKey || event.metaKey;
       const isEditorOpen = editingNodeId !== null || jsonModalMode !== null;
+      const isTyping = isTypingTarget(event.target);
 
-      if (pressedKey === "escape") {
-        if (editingNodeId !== null) {
-          closeNodeEditor();
-        }
+      switch(pressedKey){
+        case "escape":
+          if (editingNodeId !==null){
+            closeNodeEditor();
+          }
 
-        if (jsonModalMode !== null) {
-          closeJsonModal();
-        }
-        return;
-      }
+          if (jsonModalMode !==null){
 
-      if (isTypingTarget(event.target)) {
-        if (
-          isPrimaryModifierPressed &&
-          pressedKey === "enter" &&
-          editingNodeId !== null
-        ) {
-          event.preventDefault();
-          saveNodeDetails();
-        }
+            closeJsonModal();
+          }
 
-        if (
-          isPrimaryModifierPressed &&
-          pressedKey === "enter" &&
-          jsonModalMode === "import"
-        ) {
-          event.preventDefault();
-          importWorkflow();
-        }
-
-        return;
-      }
-
-      if (
-
-
-
-        isPrimaryModifierPressed &&
-        !event.shiftKey &&
-        pressedKey === "z"
-      ) {
-        event.preventDefault();
-        handleUndo();
-        return;
-      }
-
-      if (
-        isPrimaryModifierPressed &&
-
-        (pressedKey=== "y" || (event.shiftKey && pressedKey=== "z"))
-      ) {
-
-        // else  
-        event.preventDefault();
-        handleRedo();
-
-        return;
-      }
-
-      if (isPrimaryModifierPressed && pressedKey === "s") {
-        event.preventDefault();
-        openExportModal();
-        return;
-      }
-
-      if (isPrimaryModifierPressed && pressedKey === "c") {
-        if (!selectedCanvasNode) {
           return;
-        }
 
-        event.preventDefault();
-        handleCopyNode();
-        return;
+
+        case "enter":
+          if(isTyping  && isPrimaryModifierPressed){
+            if(editingNodeId !==null){
+
+              event.preventDefault();
+              saveNodeDetails();
+            }
+
+            if(jsonModalMode==="import") {
+              event.preventDefault();
+
+              importWorkflow();
+            }
+
+          }
+
+          if(isTyping){
+            return;
+          }
+
+
+          break;
+
+        default:
+          if(isTyping) {
+            return;
+          }
+
       }
 
-      if (isPrimaryModifierPressed && pressedKey === "v") {
-        if (!copiedNodeRef.current) {
+      if (isPrimaryModifierPressed) {
+        switch (pressedKey) {
+          case "z":
+            event.preventDefault();
+
+            if (event.shiftKey){
+              handleRedo();
+            } else {
+              handleUndo();
+            }
+
+
+            return;
+
+          case "y":
+
+            event.preventDefault();
+            handleRedo();
+            return;
+
+
+          case "s":
+            event.preventDefault();
+            openExportModal();
+            return;
+
+
+          case "c":
+            if(selectedCanvasNode) {
+              event.preventDefault();
+              handleCopyNode();
+            }
+
+            return;
+
+          case "v":
+            if(copiedNodeRef.current) {
+              event.preventDefault();
+
+              handlePasteNode();
+            }
+
+            return;
+
+          case "o":
+            event.preventDefault();
+            openImportModal();
+            return;
+
+          default:
+            break;
+        }
+
+
+      }
+
+      if(isEditorOpen) {
           return;
-        }
-
-        event.preventDefault();
-        handlePasteNode();
-        return;
       }
 
-      if (isPrimaryModifierPressed && pressedKey === "o") {
-        event.preventDefault();
-        openImportModal();
+      switch (pressedKey) {
+        case "s":
+          handleAddNode("start");
+          return;
 
-        return;
-      }
+        case "a":
+          handleAddNode("action");
+          return;
 
-      if (isEditorOpen) {
-        return;
-      }
+        case "c":
+          handleAddNode("condition");
+          return;
 
-      if (pressedKey === "s") {
-        handleAddNode("start");
-        return;
-      }
+        case "e":
+          handleAddNode("end");
+          return;
 
-      if (pressedKey === "a") {
-        handleAddNode("action");
-        return;
-      }
-
-      if (pressedKey === "c") {
-        handleAddNode("condition");
-        return;
-      }
-
-      if (pressedKey === "e") {
-        handleAddNode("end");
+        default:
+          break;
       }
     }
 
