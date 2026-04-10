@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import {
   MarkerType,
   addEdge,
@@ -143,8 +144,11 @@ function snapshotsMatch(
 }
 
 const initialSnapshot = buildSnapshot(workflowPreviewNodes, workflowPreviewEdges);
+const workflowStorageKey = "interactive-workflow-builder-state";
 
-export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
+export const useWorkflowStore = create<WorkflowStore>()(
+  persist(
+    (set, get) => ({
   nodes: initialSnapshot.nodes,
   edges: initialSnapshot.edges,
   past: [],
@@ -184,7 +188,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         const previousSnapshot =
           state.dragSnapshot ?? buildSnapshot(state.nodes, state.edges);
 
-        if (snapshotsMatch(previousSnapshot, nextSnapshot)) {
+        if (snapshotsMatch(previousSnapshot,nextSnapshot)) {
           return {
             nodes: nextNodes,
             dragSnapshot: null,
@@ -378,4 +382,16 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         canRedo: nextFuture.length > 0,
       };
     }),
-}));
+}),
+    {
+
+      name: workflowStorageKey,
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        nodes: clearNodeSelection(state.nodes),
+        edges: state.edges,
+      }),
+
+    },
+  ),
+);
