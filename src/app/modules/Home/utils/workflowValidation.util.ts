@@ -40,7 +40,17 @@ export function isValidWorkflowConnection(
   }
 
   if (targetNode.data.kind === "start") {
-    return false;
+    if (sourceNode.data.kind !== "condition" || !connection.sourceHandle) {
+      return false;
+    }
+
+    const startNodeHasIncomingEdge = edges.some(
+      (edge) => edge.target === targetNode.id
+    );
+
+    if (startNodeHasIncomingEdge) {
+      return false;
+    }
   }
 
   const isDuplicateConnection = edges.some((edge) => {
