@@ -128,6 +128,8 @@ export function WorkflowShell(): JSX.Element {
   const [canvasState, setCanvasState]= useState<CanvasState>({
     reactFlowInstance: null,
   });
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [mobileAddFeedback, setMobileAddFeedback] = useState<WorkflowNodeKind | null>(null);
 
 
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
@@ -150,6 +152,52 @@ export function WorkflowShell(): JSX.Element {
   }));
 
   const validateConnection: IsValidConnection = (connection) => isValidWorkflowConnection(connection, nodes, edges);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const syncViewport = (event?: MediaQueryListEvent): void => {
+      setIsCompactViewport(event?.matches ?? mediaQuery.matches);
+    };
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncViewport);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isCompactViewport || !mobileAddFeedback) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setMobileAddFeedback(null);
+    }, 700);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isCompactViewport, mobileAddFeedback]);
+
+  function getViewportCenterPosition(): XYPosition | null {
+    if (!canvasState.reactFlowInstance || !canvasContainerRef.current) {
+      return null;
+    }
+
+    const { x, y, zoom } = canvasState.reactFlowInstance.getViewport();
+    const bounds = canvasContainerRef.current.getBoundingClientRect();
+
+    return {
+      x: (bounds.width / 2 - x) / zoom,
+      y: (bounds.height / 2 - y) / zoom,
+    };
+  }
 
   function handleCanvasNodesDelete(deletedNodes: WorkflowCanvasNode[]): void{
     handleNodesDelete(deletedNodes);
@@ -255,14 +303,28 @@ export function WorkflowShell(): JSX.Element {
       return;
     }
 
+    const viewportPosition = isCompactViewport ? getViewportCenterPosition() : null;
     const canvasBounds = canvasContainerRef.current.getBoundingClientRect();
-    const position = canvasState.reactFlowInstance.screenToFlowPosition({
+    const position = viewportPosition ?? canvasState.reactFlowInstance.screenToFlowPosition({
       x: canvasBounds.left +canvasBounds.width / 2,
       y: canvasBounds.top +canvasBounds.height / 2,
     });
 
   
     addNode(kind, position);
+  }
+
+  function handleAddNodeFromButton(kind: WorkflowNodeKind): void {
+    
+    if (isCompactViewport) {
+      setMobileAddFeedback(kind);
+      canvasContainerRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+
+    handleAddNode(kind);
   }
 
   function handleDropNode(kind: WorkflowNodeKind, position: XYPosition): void {
@@ -567,8 +629,8 @@ export function WorkflowShell(): JSX.Element {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="shrink-0 bg-white"
-                        onClick={() => handleAddNode(nodeItem.kind)}
+                        className={`shrink-0 bg-white ${isCompactViewport && mobileAddFeedback===nodeItem.kind ? "animate-pulse ring-2 ring-sky-400/60" : ""}`}
+                        onClick={() => handleAddNodeFromButton(nodeItem.kind)}
                       >
                         Add
                       </Button>
