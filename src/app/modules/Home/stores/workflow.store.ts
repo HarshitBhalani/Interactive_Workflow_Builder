@@ -55,7 +55,7 @@ type WorkflowStore = {
   redo: () => void;
 };
 
-function buildEdgeAppearance(connection: Connection) {
+function buildEdgeAppearance(connection: Connection): Partial<WorkflowGraphEdge> {
   const label =
     connection.sourceHandle === "yes"
       ? "Yes"
@@ -97,7 +97,7 @@ function buildSnapshot(
   return createWorkflowSnapshot(nodes, edges);
 }
 
-function trimPastHistory(past: WorkflowSnapshot[]) {
+function trimPastHistory(past: WorkflowSnapshot[]): WorkflowSnapshot[] {
   if (past.length <= MAX_HISTORY_LENGTH) {
     return past;
   }
@@ -105,7 +105,7 @@ function trimPastHistory(past: WorkflowSnapshot[]) {
   return past.slice(past.length - MAX_HISTORY_LENGTH);
 }
 
-function buildPresentState(snapshot: WorkflowSnapshot) {
+function buildPresentState(snapshot: WorkflowSnapshot): Pick<WorkflowStore, "nodes" | "edges"> {
   return {
     nodes: snapshot.nodes,
     edges: snapshot.edges,
@@ -116,7 +116,7 @@ function buildHistoryState(
   previousSnapshot: WorkflowSnapshot,
   nextSnapshot: WorkflowSnapshot,
   past: WorkflowSnapshot[],
-) {
+): Pick<WorkflowStore,"nodes" | "edges" | "past" | "future" | "dragSnapshot" | "canUndo" | "canRedo"> {
   const nextPast = trimPastHistory([...past, previousSnapshot]);
 
   return {
@@ -129,7 +129,7 @@ function buildHistoryState(
   };
 }
 
-function clearNodeSelection(nodes: WorkflowGraphNode[]) {
+function clearNodeSelection(nodes: WorkflowGraphNode[]): WorkflowGraphNode[] {
   return nodes.map((node) => ({
     ...node,
     selected: false,
@@ -139,7 +139,7 @@ function clearNodeSelection(nodes: WorkflowGraphNode[]) {
 function snapshotsMatch(
   firstSnapshot: WorkflowSnapshot,
   secondSnapshot: WorkflowSnapshot,
-) {
+): boolean {
   return JSON.stringify(firstSnapshot) === JSON.stringify(secondSnapshot);
 }
 
@@ -157,7 +157,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
   canUndo: false,
   canRedo: false,
 
-  handleNodesChange: (changes) =>
+  handleNodesChange: (changes): void => {
     set((state) => {
       const nextNodes = applyNodeChanges(
         changes.filter((change) => change.type !== "remove"),
@@ -201,9 +201,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
       return {
         nodes: nextNodes,
       };
-    }),
+    });
+  },
 
-  handleEdgesChange: (changes) =>
+  handleEdgesChange: (changes): void => {
     set((state) => {
       const nextEdges = applyEdgeChanges(changes, state.edges);
       const nextSnapshot = buildSnapshot(state.nodes, nextEdges);
@@ -220,9 +221,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
         nextSnapshot,
         state.past,
       );
-    }),
+    });
+  },
 
-  handleNodesDelete: (deletedNodes) =>
+  handleNodesDelete: (deletedNodes): void => {
     set((state) => {
       if (deletedNodes.length === 0) {
         return state;
@@ -239,9 +241,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
         buildSnapshot(nextNodes, nextEdges),
         state.past,
       );
-    }),
+    });
+  },
 
-  connectNodes: (connection) => {
+  connectNodes: (connection): void => {
     const { nodes, edges } = get();
 
     if (!isValidWorkflowConnection(connection, nodes, edges)) {
@@ -265,7 +268,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
     });
   },
 
-  addNode: (kind, position) =>
+  addNode: (kind, position): void => {
     set((state) => {
       const nextNode = createWorkflowNode(kind, state.nodes, position);
       const nextNodes = [...clearNodeSelection(state.nodes), nextNode];
@@ -275,9 +278,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
         buildSnapshot(nextNodes, state.edges),
         state.past,
       );
-    }),
+    });
+  },
 
-  pasteNode: (node, position) =>
+  pasteNode: (node, position): void => {
     set((state) => {
 
 
@@ -293,9 +297,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
         state.past,
 
       );
-    }),
+    });
+  },
 
-  updateNodeDetails: (nodeId, payload) =>
+  updateNodeDetails: (nodeId, payload): void => {
     set((state) => {
       const nextNodes = state.nodes.map((node) =>
         node.id === nodeId
@@ -318,9 +323,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
       }
 
       return buildHistoryState(previousSnapshot, nextSnapshot, state.past);
-    }),
+    });
+  },
 
-  loadWorkflowSnapshot: (snapshot) =>
+  loadWorkflowSnapshot: (snapshot): void => {
     set((state) => {
       const previousSnapshot = buildSnapshot(state.nodes, state.edges);
       const nextSnapshot = buildSnapshot(
@@ -333,9 +339,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
       }
 
       return buildHistoryState(previousSnapshot, nextSnapshot, state.past);
-    }),
+    });
+  },
 
-  undo: () =>
+  undo: (): void => {
     set((state) => {
       const previousSnapshot = state.past.at(-1);
 
@@ -357,9 +364,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
         canUndo: nextPast.length > 0,
         canRedo: nextFuture.length > 0,
       };
-    }),
+    });
+  },
 
-  redo: () =>
+  redo: (): void => {
     set((state) => {
       const nextSnapshot = state.future[0];
 
@@ -381,7 +389,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
         canUndo: nextPast.length > 0,
         canRedo: nextFuture.length > 0,
       };
-    }),
+    });
+  },
 }),
     {
 

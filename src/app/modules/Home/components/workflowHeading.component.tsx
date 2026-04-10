@@ -1,4 +1,6 @@
-export function WorkflowHeading() {
+import type { JSX } from "react";
+
+export function WorkflowHeading(): JSX.Element {
   return (
 
     <div className="space-y-1">

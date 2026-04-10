@@ -1,5 +1,6 @@
 "use client";
 
+import type { JSX } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import type { WorkflowNodeData } from "../types/workflow.type";
 
@@ -14,7 +15,7 @@ export function WorkflowNode({
   id,
   data,
   selected,
-}: NodeProps<WorkflowNodeData>){
+}: NodeProps<WorkflowNodeData>): JSX.Element{ //JSX elemet because we are using reactflow and it expects a JSX element to be returned from the node component
   const isCondition = data.kind==="condition";
 
   return (

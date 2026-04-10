@@ -1,5 +1,6 @@
 "use client";
 
+import type { JSX } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -21,7 +22,7 @@ export function WorkflowEdge({
   label,
   selected,
   interactionWidth,
-}: EdgeProps) {
+}: EdgeProps): JSX.Element {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,

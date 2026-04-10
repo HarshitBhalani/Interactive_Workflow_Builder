@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow"; //bcaz Zustand me object selector use karte time unnecessary re-render avoid karne ke liye
+import type { JSX } from "react";
 import type {
   Connection,
   IsValidConnection,
@@ -54,7 +55,7 @@ type CanvasState ={
 
 const dragDataKey="application/workflow-node-kind";
 
-function isTypingTarget(target: EventTarget | null) {
+function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
   }
@@ -69,7 +70,7 @@ function isTypingTarget(target: EventTarget | null) {
   );
 }
 
-export function WorkflowShell() {
+export function WorkflowShell(): JSX.Element {
 
 
   const workflowStore = useWorkflowStore(
@@ -150,11 +151,11 @@ export function WorkflowShell() {
 
   const validateConnection: IsValidConnection = (connection) => isValidWorkflowConnection(connection, nodes, edges);
 
-  function handleCanvasNodesDelete(deletedNodes: WorkflowCanvasNode[]){
+  function handleCanvasNodesDelete(deletedNodes: WorkflowCanvasNode[]): void{
     handleNodesDelete(deletedNodes);
   }
 
-  function openNodeEditor(nodeId: string) {
+  function openNodeEditor(nodeId: string): void {
     const node = nodes.find((currentNode) => currentNode.id === nodeId);
 
     if (!node) {
@@ -170,7 +171,7 @@ export function WorkflowShell() {
     );
   }
 
-  function closeNodeEditor(){
+  function closeNodeEditor(): void{
     setNodeEditor({
       editingNodeId:null,
       draftTitle: "",
@@ -178,7 +179,7 @@ export function WorkflowShell() {
     });
   }
 
-  function deleteNode(nodeId:string) {
+  function deleteNode(nodeId:string): void {
     const node = nodes.find((currentNode) => currentNode.id===nodeId);
 
     if (!node){
@@ -193,7 +194,7 @@ export function WorkflowShell() {
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  function openExportModal() {
+  function openExportModal(): void {
     const snapshot: WorkflowSnapshot = createWorkflowSnapshot(nodes, edges);
 
 
@@ -205,7 +206,7 @@ export function WorkflowShell() {
     });
   }
 
-  function openImportModal() {
+  function openImportModal(): void {
     setJsonModal({
 
       mode: "import",
@@ -214,7 +215,7 @@ export function WorkflowShell() {
     });
   }
 
-  function closeJsonModal(){
+  function closeJsonModal(): void{
 
     setJsonModal({
       mode: null,
@@ -223,32 +224,32 @@ export function WorkflowShell() {
     });
   }
 
-  function handleConnect(connection: Connection) {
+  function handleConnect(connection: Connection): void {
     connectNodes(connection);
   }
 
   function handleCanvasInit(
     instance:ReactFlowInstance<WorkflowCanvasNode,WorkflowGraphEdge>
-  ) {
+  ): void {
     setCanvasState({ //because reactFlowInstance in handleAddNode function to calculate the position of new node based on canvas center
       reactFlowInstance:instance,
     });
   }
 
-  const handleUndo= useCallback(() => {
+  const handleUndo= useCallback((): void => {
     closeNodeEditor();
     closeJsonModal();
     undo();
   },[undo]);
 
-  const handleRedo=useCallback(()=>{
+  const handleRedo=useCallback((): void =>{
     closeNodeEditor();
     closeJsonModal();
     redo();
   },[redo]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  function handleAddNode(kind: WorkflowNodeKind) {
+  function handleAddNode(kind: WorkflowNodeKind): void {
     if(!canvasState.reactFlowInstance || !canvasContainerRef.current) {
       addNode(kind);
       return;
@@ -264,11 +265,11 @@ export function WorkflowShell() {
     addNode(kind, position);
   }
 
-  function handleDropNode(kind: WorkflowNodeKind, position: XYPosition) {
+  function handleDropNode(kind: WorkflowNodeKind, position: XYPosition): void {
     addNode(kind, position);
   }
 
-  const handleCopyNode = useCallback(() => {
+  const handleCopyNode = useCallback((): void => {
     if (!selectedCanvasNode) {
       return;
     }
@@ -281,7 +282,7 @@ export function WorkflowShell() {
     pasteCountRef.current = 0;
   }, [selectedCanvasNode]);
 
-  const handlePasteNode = useCallback(() => {
+  const handlePasteNode = useCallback((): void => {
     const copiedNode = copiedNodeRef.current;
 
     if (!copiedNode) {
@@ -301,13 +302,13 @@ export function WorkflowShell() {
   function handleNodeTypeDragStart(
     event: React.DragEvent<HTMLDivElement>,
     kind: WorkflowNodeKind,
-  ) {
+  ): void {
     event.dataTransfer.setData(dragDataKey, kind);
     event.dataTransfer.effectAllowed = "move";
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  function saveNodeDetails() {
+  function saveNodeDetails(): void {
     if (!nodeEditor.editingNodeId) {
       return;
     }
@@ -321,7 +322,7 @@ export function WorkflowShell() {
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  function importWorkflow() {
+  function importWorkflow(): void {
     try {
       const snapshot = parseWorkflowSnapshot(jsonModal.workflowJson);
 
@@ -342,7 +343,7 @@ export function WorkflowShell() {
   }
 
   useEffect(()=>{
-    function handleKeyDown(event: KeyboardEvent) {
+    function handleKeyDown(event: KeyboardEvent): void {
       const pressedKey = event.key.toLowerCase();
       const isPrimaryModifierPressed = event.ctrlKey || event.metaKey;
       const isEditorOpen = nodeEditor.editingNodeId !== null || jsonModal.mode !== null; //because both node editor and json modal are considered as "editor" in this context

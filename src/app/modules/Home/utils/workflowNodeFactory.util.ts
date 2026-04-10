@@ -47,7 +47,7 @@ const nodeContentByKind = workflowNodeCatalog.reduce<
   return catalog;
 }, {} as Record<WorkflowNodeKind, Omit<WorkflowNodeCatalogItem, "kind">>);
 
-function getNextNodeNumber(kind: WorkflowNodeKind, nodes: WorkflowGraphNode[]) {
+function getNextNodeNumber(kind: WorkflowNodeKind, nodes: WorkflowGraphNode[]): number {
   const takenNumbers = new Set(
     nodes
       .filter((node) => node.data.kind === kind)
@@ -68,7 +68,7 @@ function getNextNodeNumber(kind: WorkflowNodeKind, nodes: WorkflowGraphNode[]) {
   return nextNumber;
 }
 
-function getNextNodePosition(nodes: WorkflowGraphNode[]) {
+function getNextNodePosition(nodes: WorkflowGraphNode[]): XYPosition {
   const nextIndex = nodes.length;
 
   return {

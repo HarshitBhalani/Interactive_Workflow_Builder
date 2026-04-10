@@ -55,7 +55,7 @@ export type WorkflowCanvasProps = {
 
 type Props = WorkflowCanvasProps;
 
-function getMiniMapNodeColor(node: WorkflowCanvasNode) {
+function getMiniMapNodeColor(node: WorkflowCanvasNode): string {
   return minimapNodeColorByKind[node.data.kind] ?? "#64748b";
 }
 
@@ -86,7 +86,8 @@ function WorkflowCanvas({
     }
 
     const mediaQuery = window.matchMedia("(max-width: 767px)");
-    const syncViewport = (event?: MediaQueryListEvent) => {
+    
+    const syncViewport = (event?: MediaQueryListEvent): void => {
       setIsCompactViewport(event?.matches ?? mediaQuery.matches);
     };
 
@@ -100,17 +101,17 @@ function WorkflowCanvas({
 
   function handleInit(
     instance: ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge>
-  ) {
+  ): void {
     setReactFlowInstance(instance);
     onCanvasInit?.(instance);
   }
 
-  function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
+  function handleDragOver(event: React.DragEvent<HTMLDivElement>): void {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
   }
 
-  function handleDrop(event: React.DragEvent<HTMLDivElement>) {
+  function handleDrop(event: React.DragEvent<HTMLDivElement>): void {
     event.preventDefault();
 
     const draggedNodeKind = event.dataTransfer.getData(

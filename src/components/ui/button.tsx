@@ -32,7 +32,7 @@ export interface ButtonProps
     VariantProps<typeof buttonVariants> {}
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
+  ({ className, variant, size, ...props }, ref): React.JSX.Element => {
     return (
       <button
         ref={ref}
