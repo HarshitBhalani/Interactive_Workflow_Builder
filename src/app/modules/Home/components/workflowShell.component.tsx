@@ -130,6 +130,7 @@ export function WorkflowShell(): JSX.Element {
   const [canvasState, setCanvasState]= useState<CanvasState>({
     reactFlowInstance: null,
   });
+  const [viewportResetToken, setViewportResetToken] = useState(0);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [mobileAddFeedback, setMobileAddFeedback] = useState<WorkflowNodeKind | null>(null);
 
@@ -303,7 +304,15 @@ export function WorkflowShell(): JSX.Element {
     closeNodeEditor();
     closeJsonModal();
     resetWorkflow();
-  },[resetWorkflow]);
+    setViewportResetToken((currentToken) => currentToken + 1);
+
+    if (isCompactViewport) {
+      canvasContainerRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  },[isCompactViewport, resetWorkflow]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   function handleAddNode(kind:WorkflowNodeKind): void {
@@ -675,6 +684,7 @@ export function WorkflowShell(): JSX.Element {
                 className="relative flex min-h-[55vh] flex-1 overflow-hidden rounded-b-[18px] bg-[#fbfcfd] sm:min-h-[60vh] lg:min-h-0"
               >
                 <WorkflowCanvas
+                  key={viewportResetToken}
                   nodes={canvasNodes}
                   edges={edges}
                   onNodesChange={handleNodesChange}
@@ -684,6 +694,7 @@ export function WorkflowShell(): JSX.Element {
                   isValidConnection={validateConnection}
                   onDropNode={handleDropNode}
                   onCanvasInit={handleCanvasInit}
+                  viewportResetToken={viewportResetToken}
                 />
               </div>
             </Card>

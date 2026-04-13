@@ -51,6 +51,7 @@ export type WorkflowCanvasProps = {
   onCanvasInit?: (
     instance: ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge>
   ) => void;
+  viewportResetToken?: number;
 };
 
 type Props = WorkflowCanvasProps;
@@ -69,6 +70,7 @@ function WorkflowCanvas({
   isValidConnection,
   onDropNode,
   onCanvasInit,
+  viewportResetToken = 0,
 }: Props): JSX.Element {
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null>(
@@ -98,6 +100,23 @@ function WorkflowCanvas({
       mediaQuery.removeEventListener("change", syncViewport);
     };
   }, []);
+
+  useEffect(() => {
+    if (!reactFlowInstance) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      reactFlowInstance.fitView({
+        padding: isCompactViewport ? 0.12 : 0.18,
+        duration: 350,
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [reactFlowInstance, isCompactViewport, viewportResetToken]);
 
   function handleInit(
     instance: ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge>
