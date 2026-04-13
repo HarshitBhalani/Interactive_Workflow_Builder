@@ -596,7 +596,7 @@ export function WorkflowShell(): JSX.Element {
             <Button
               type="button"
               onClick={openExportModal}
-              className="col-span-2 w-full sm:col-span-1 sm:w-auto"
+              className="w-full sm:w-auto"
             >
               Export JSON
             </Button>
@@ -610,7 +610,7 @@ export function WorkflowShell(): JSX.Element {
                 <CardTitle className="text-base">Node state</CardTitle>
               </CardHeader>
               <CardContent className="p-4">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-1">
                   {workflowNodeCatalog.map((nodeItem) => (
                     <div
                       key={nodeItem.kind}
@@ -618,7 +618,7 @@ export function WorkflowShell(): JSX.Element {
                       onDragStart={(event) =>
                         handleNodeTypeDragStart(event, nodeItem.kind)
                       }
-                      className="flex cursor-grab items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 active:cursor-grabbing"
+                      className="flex cursor-grab flex-col items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center transition hover:bg-slate-100 active:cursor-grabbing sm:flex-row sm:items-start sm:justify-between sm:text-left"
                     >
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-slate-900">
@@ -629,7 +629,7 @@ export function WorkflowShell(): JSX.Element {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className={`shrink-0 bg-white ${isCompactViewport && mobileAddFeedback===nodeItem.kind ? "animate-pulse ring-2 ring-sky-400/60" : ""}`}
+                        className={`w-full bg-white sm:w-auto sm:shrink-0 ${isCompactViewport && mobileAddFeedback===nodeItem.kind ? "animate-pulse ring-2 ring-sky-400/60" : ""}`}
                         onClick={() => handleAddNodeFromButton(nodeItem.kind)}
                       >
                         Add
