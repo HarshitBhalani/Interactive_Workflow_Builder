@@ -84,3 +84,9 @@ button {
     fill 180ms ease,
     stroke 180ms ease;
 }
+
+.workflow-node-palette-item {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}

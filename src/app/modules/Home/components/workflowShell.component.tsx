@@ -57,6 +57,14 @@ type CanvasState ={
   reactFlowInstance:ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null;
 };
 
+type MobileDragState = {
+  kind: WorkflowNodeKind;
+  label: string;
+  touchId: number;
+  clientX: number;
+  clientY: number;
+};
+
 const dragDataKey="application/workflow-node-kind";
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -138,6 +146,7 @@ export function WorkflowShell(): JSX.Element {
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [mobileAddFeedback, setMobileAddFeedback] = useState<WorkflowNodeKind | null>(null);
   const [isNodeSidebarOpen, setIsNodeSidebarOpen] = useState(true);
+  const [mobileDragState, setMobileDragState] = useState<MobileDragState | null>(null);
 
 
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
@@ -356,6 +365,32 @@ export function WorkflowShell(): JSX.Element {
 
   function handleDropNode(kind: WorkflowNodeKind, position: XYPosition): void {
     addNode(kind, position);
+  }
+
+  function handleMobileNodeTouchStart(
+    event: React.TouchEvent<HTMLDivElement>,
+    kind: WorkflowNodeKind,
+    label: string,
+  ): void {
+    if (!isCompactViewport) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const [touch] = Array.from(event.changedTouches);
+
+    if (!touch) {
+      return;
+    }
+
+    setMobileDragState({
+      kind,
+      label,
+      touchId: touch.identifier,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+    });
   }
 
   const handleCopyNode = useCallback((): void => {
@@ -588,6 +623,85 @@ export function WorkflowShell(): JSX.Element {
   ]
 );
 
+  useEffect(() => {
+    if (!isCompactViewport || !mobileDragState) {
+      return;
+    }
+
+    const activeMobileDrag = mobileDragState;
+
+    function findTrackedTouch(touchList: TouchList): Touch | null {
+      return (
+        Array.from(touchList).find(
+          (touch) => touch.identifier === activeMobileDrag.touchId
+        ) ?? null
+      );
+    }
+
+    function handleTouchMove(event: TouchEvent): void {
+      const trackedTouch = findTrackedTouch(event.touches);
+
+      if (!trackedTouch) {
+        return;
+      }
+
+      event.preventDefault();
+      setMobileDragState((currentState) =>
+        currentState
+          ? {
+              ...currentState,
+              clientX: trackedTouch.clientX,
+              clientY: trackedTouch.clientY,
+            }
+          : currentState
+      );
+    }
+
+    function handleTouchEnd(event: TouchEvent): void {
+      const trackedTouch = findTrackedTouch(event.changedTouches);
+
+      if (!trackedTouch) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const canvasBounds = canvasContainerRef.current?.getBoundingClientRect();
+      const droppedInsideCanvas = canvasBounds
+        ? trackedTouch.clientX >= canvasBounds.left &&
+          trackedTouch.clientX <= canvasBounds.right &&
+          trackedTouch.clientY >= canvasBounds.top &&
+          trackedTouch.clientY <= canvasBounds.bottom
+        : false;
+
+      if (droppedInsideCanvas && canvasState.reactFlowInstance) {
+        const position = canvasState.reactFlowInstance.screenToFlowPosition({
+          x: trackedTouch.clientX,
+          y: trackedTouch.clientY,
+        });
+
+        addNode(activeMobileDrag.kind, position);
+        setMobileAddFeedback(activeMobileDrag.kind);
+      }
+
+      setMobileDragState(null);
+    }
+
+    function handleTouchCancel(): void {
+      setMobileDragState(null);
+    }
+
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd, { passive: false });
+    window.addEventListener("touchcancel", handleTouchCancel);
+
+    return () => {
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchcancel", handleTouchCancel);
+    };
+  }, [addNode, canvasState.reactFlowInstance, isCompactViewport, mobileDragState]);
+
   return (
     <main className="min-h-screen overflow-x-clip bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4">
       <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-7xl flex-col overflow-hidden rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)] sm:min-h-[calc(100vh-2rem)]">
@@ -643,13 +757,13 @@ export function WorkflowShell(): JSX.Element {
                 ? cn(
                     "border-b border-black/8",
                     isNodeSidebarOpen
-                      ? "max-h-[420px] p-4 sm:p-5"
+                      ? "max-h-105 p-4 sm:p-5"
                       : "max-h-0 p-0"
                   )
                 : cn(
                     "border-b border-black/8",
                     isNodeSidebarOpen
-                      ? "w-full p-4 sm:p-5 lg:w-[280px]"
+                      ? "w-full p-4 sm:p-5 lg:w-70"
                       : "w-0 p-0"
                   )
             )}
@@ -671,11 +785,18 @@ export function WorkflowShell(): JSX.Element {
                     {workflowNodeCatalog.map((nodeItem) => (
                       <div
                         key={nodeItem.kind}
-                        draggable
+                        draggable={!isCompactViewport}
                         onDragStart={(event) =>
                           handleNodeTypeDragStart(event, nodeItem.kind)
                         }
-                        className={`flex cursor-grab flex-col items-center gap-3 rounded-xl border px-4 py-3 text-center transition active:cursor-grabbing sm:flex-row sm:items-start sm:justify-between sm:text-left ${workflowNodeAppearanceByKind[nodeItem.kind].sidebarClassName}`}
+                        onTouchStart={(event) =>
+                          handleMobileNodeTouchStart(
+                            event,
+                            nodeItem.kind,
+                            nodeItem.badge
+                          )
+                        }
+                        className={`workflow-node-palette-item flex cursor-grab flex-col items-center gap-3 rounded-xl border px-4 py-3 text-center transition active:cursor-grabbing sm:flex-row sm:items-start sm:justify-between sm:text-left ${workflowNodeAppearanceByKind[nodeItem.kind].sidebarClassName}`}
                       >
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-slate-900">
@@ -710,7 +831,7 @@ export function WorkflowShell(): JSX.Element {
                 "absolute z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900",
                 isCompactViewport
                   ? isNodeSidebarOpen
-                    ? "right-4 bottom-[-20px]"
+                    ? "right-4 -bottom-5"
                     : "right-4 top-3"
                   : isNodeSidebarOpen
                     ? "-right-5 top-5"
@@ -903,6 +1024,23 @@ export function WorkflowShell(): JSX.Element {
                 </Button>
               ) : null}
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {mobileDragState ? (
+        <div className="pointer-events-none fixed inset-0 z-50">
+          <div
+            className={cn(
+              "absolute -translate-x-1/2 -translate-y-1/2 rounded-xl border px-3 py-2 text-sm font-medium text-slate-900 shadow-[0_18px_36px_rgba(15,23,42,0.18)]",
+              workflowNodeAppearanceByKind[mobileDragState.kind].sidebarClassName
+            )}
+            style={{
+              left: mobileDragState.clientX,
+              top: mobileDragState.clientY,
+            }}
+          >
+            {mobileDragState.label}
           </div>
         </div>
       ) : null}

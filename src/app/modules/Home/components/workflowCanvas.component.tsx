@@ -2,11 +2,16 @@
 
 import type { JSX } from "react";
 import { useEffect, useState } from "react";
-import { PictureInPicture, PictureInPicture2 } from "lucide-react";
+import {
+  Minus,
+  PictureInPicture,
+  PictureInPicture2,
+  Plus,
+  ScanSearch,
+} from "lucide-react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
-  Controls,
   MiniMap,
   type Connection,
   type IsValidConnection,
@@ -145,6 +150,21 @@ function WorkflowCanvas({
     onDropNode(draggedNodeKind, position);
   }
 
+  function handleZoomIn(): void {
+    reactFlowInstance?.zoomIn({ duration: 180 });
+  }
+
+  function handleZoomOut(): void {
+    reactFlowInstance?.zoomOut({ duration: 180 });
+  }
+
+  function handleFitView(): void {
+    reactFlowInstance?.fitView({
+      padding: isCompactViewport ? 0.12 : 0.18,
+      duration: 260,
+    });
+  }
+
   return (
     <div
       className="h-full w-full touch-none"
@@ -165,6 +185,8 @@ function WorkflowCanvas({
         elevateEdgesOnSelect
         fitView
         fitViewOptions={{ padding: isCompactViewport ? 0.12 : 0.18 }}
+        minZoom={0.2}
+        maxZoom={2.5}
         nodesDraggable
         nodesConnectable
         elementsSelectable
@@ -180,7 +202,35 @@ function WorkflowCanvas({
           size={1.1}
           color="#cbd5e1"
         />
-        {!isCompactViewport ? <Controls showInteractive={false} /> : null}
+        <div className="absolute bottom-4 left-4 z-10 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_24px_rgba(15,23,42,0.12)]">
+          <button
+            type="button"
+            aria-label="Zoom in"
+            title="Zoom in"
+            onClick={handleZoomIn}
+            className="flex h-10 w-10 items-center justify-center border-b border-slate-200 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+          >
+            <Plus size={16} />
+          </button>
+          <button
+            type="button"
+            aria-label="Zoom out"
+            title="Zoom out"
+            onClick={handleZoomOut}
+            className="flex h-10 w-10 items-center justify-center border-b border-slate-200 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+          >
+            <Minus size={16} />
+          </button>
+          <button
+            type="button"
+            aria-label="Fit view"
+            title="Fit view"
+            onClick={handleFitView}
+            className="flex h-10 w-10 items-center justify-center text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+          >
+            <ScanSearch size={16} />
+          </button>
+        </div>
         {!isCompactViewport ? (
           <>
             {isMiniMapVisible ? (
