@@ -86,6 +86,7 @@ export function WorkflowShell(): JSX.Element {
       connectNodes: state.connectNodes,
       updateNodeDetails: state.updateNodeDetails,
       loadWorkflowSnapshot: state.loadWorkflowSnapshot,
+      resetWorkflow: state.resetWorkflow,
       undo: state.undo,
       redo: state.redo,
       canUndo: state.canUndo,
@@ -106,6 +107,7 @@ export function WorkflowShell(): JSX.Element {
     connectNodes,
     updateNodeDetails,
     loadWorkflowSnapshot,
+    resetWorkflow,
     undo,
     redo,
     canUndo,
@@ -296,8 +298,15 @@ export function WorkflowShell(): JSX.Element {
     redo();
   },[redo]);
 
+  const handleReset = useCallback(():void=>{
+
+    closeNodeEditor();
+    closeJsonModal();
+    resetWorkflow();
+  },[resetWorkflow]);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  function handleAddNode(kind: WorkflowNodeKind): void {
+  function handleAddNode(kind:WorkflowNodeKind): void {
     if(!canvasState.reactFlowInstance || !canvasContainerRef.current) {
       addNode(kind);
       return;
@@ -573,6 +582,13 @@ export function WorkflowShell(): JSX.Element {
             <Button
               variant="outline"
               type="button"
+              onClick={handleReset}
+              className="w-full sm:w-auto"
+            >Reset</Button>
+
+            <Button
+              variant="outline"
+              type="button"
               onClick={handleUndo}
               className="w-full sm:w-auto"
               disabled={!canUndo}>Undo</Button>
@@ -596,10 +612,8 @@ export function WorkflowShell(): JSX.Element {
             <Button
               type="button"
               onClick={openExportModal}
-              className="w-full sm:w-auto"
-            >
-              Export JSON
-            </Button>
+              className="col-span-2 w-full sm:col-span-1 sm:w-auto"
+            >Export JSON</Button>
           </div>
         </header>
 

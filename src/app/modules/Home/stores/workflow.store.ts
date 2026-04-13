@@ -51,6 +51,7 @@ type WorkflowStore = {
     payload: { title: string; subtitle: string },
   ) => void;
   loadWorkflowSnapshot: (snapshot: WorkflowSnapshot) =>void;
+  resetWorkflow:() => void;
   undo: () => void;
   redo: () => void;
 };
@@ -339,6 +340,23 @@ export const useWorkflowStore = create<WorkflowStore>()(
       }
 
       return buildHistoryState(previousSnapshot, nextSnapshot, state.past);
+    });
+  },
+
+  resetWorkflow: ():void => {
+    set((state)=>{
+      const previousSnapshot=buildSnapshot(state.nodes, state.edges);
+      const nextSnapshot=buildSnapshot(
+        clearNodeSelection(initialSnapshot.nodes),
+        initialSnapshot.edges,
+      );
+
+      if (snapshotsMatch(previousSnapshot, nextSnapshot)){
+        
+        return state;
+      }
+
+      return buildHistoryState(previousSnapshot,nextSnapshot,state.past);
     });
   },
 
