@@ -68,3 +68,19 @@ button {
   filter: drop-shadow(0 6px 14px rgba(15, 23, 42, 0.14));
   transform: scale(1.03);
 }
+
+.workflow-minimap {
+  background: transparent !important;
+}
+
+.workflow-minimap svg {
+  display: block;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.workflow-minimap .react-flow__minimap-mask {
+  transition:
+    fill 180ms ease,
+    stroke 180ms ease;
+}

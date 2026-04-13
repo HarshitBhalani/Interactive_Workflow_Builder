@@ -18,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { cn } from "@/common/utils/cn.util";
 import { useWorkflowStore } from "../stores/workflow.store";
 import type {
   WorkflowCanvasNode,
@@ -30,7 +31,10 @@ import {
   createWorkflowSnapshot,
   parseWorkflowSnapshot,
 } from "../utils/workflowPersistence.util";
-import { workflowNodeCatalog } from "../utils/workflowNodeFactory.util";
+import {
+  workflowNodeAppearanceByKind,
+  workflowNodeCatalog,
+} from "../utils/workflowNodeFactory.util";
 import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
 import WorkflowCanvas from "./workflowCanvas.component";
 import { WorkflowHeading } from "./workflowHeading.component";
@@ -133,6 +137,7 @@ export function WorkflowShell(): JSX.Element {
   const [viewportResetToken, setViewportResetToken] = useState(0);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [mobileAddFeedback, setMobileAddFeedback] = useState<WorkflowNodeKind | null>(null);
+  const [isNodeSidebarOpen, setIsNodeSidebarOpen] = useState(true);
 
 
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
@@ -173,6 +178,10 @@ export function WorkflowShell(): JSX.Element {
       mediaQuery.removeEventListener("change", syncViewport);
     };
   }, []);
+
+  useEffect(() => {
+    setIsNodeSidebarOpen(!isCompactViewport);
+  }, [isCompactViewport]);
 
   useEffect(() => {
     if (!isCompactViewport || !mobileAddFeedback) {
@@ -626,42 +635,111 @@ export function WorkflowShell(): JSX.Element {
           </div>
         </header>
 
-        <section className="grid flex-1 gap-0 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="border-b border-black/8 bg-[#f6f8f9] p-4 sm:p-5 lg:border-r lg:border-b-0">
-            <Card className="rounded-2xl">
-              <CardHeader className="p-4 pb-0">
-                <CardTitle className="text-base">Node state</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                  {workflowNodeCatalog.map((nodeItem) => (
-                    <div
-                      key={nodeItem.kind}
-                      draggable
-                      onDragStart={(event) =>
-                        handleNodeTypeDragStart(event, nodeItem.kind)
-                      }
-                      className="flex cursor-grab flex-col items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center transition hover:bg-slate-100 active:cursor-grabbing sm:flex-row sm:items-start sm:justify-between sm:text-left"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-900">
-                          {nodeItem.badge}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className={`w-full bg-white sm:w-auto sm:shrink-0 ${isCompactViewport && mobileAddFeedback===nodeItem.kind ? "animate-pulse ring-2 ring-sky-400/60" : ""}`}
-                        onClick={() => handleAddNodeFromButton(nodeItem.kind)}
+        <section className="grid flex-1 gap-0 lg:grid-cols-[auto_minmax(0,1fr)]">
+          <aside
+            className={cn(
+              "relative overflow-visible bg-[#f6f8f9] transition-[width,max-height,padding] duration-300 ease-out lg:border-r lg:border-b-0",
+              isCompactViewport
+                ? cn(
+                    "border-b border-black/8",
+                    isNodeSidebarOpen
+                      ? "max-h-[420px] p-4 sm:p-5"
+                      : "max-h-0 p-0"
+                  )
+                : cn(
+                    "border-b border-black/8",
+                    isNodeSidebarOpen
+                      ? "w-full p-4 sm:p-5 lg:w-[280px]"
+                      : "w-0 p-0"
+                  )
+            )}
+          >
+            <div
+              className={cn(
+                "transition-all duration-200",
+                isNodeSidebarOpen
+                  ? "pointer-events-auto opacity-100"
+                  : "pointer-events-none opacity-0"
+              )}
+            >
+              <Card className="rounded-2xl">
+                <CardHeader className="p-4 pb-0">
+                  <CardTitle className="text-base">Node state</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                    {workflowNodeCatalog.map((nodeItem) => (
+                      <div
+                        key={nodeItem.kind}
+                        draggable
+                        onDragStart={(event) =>
+                          handleNodeTypeDragStart(event, nodeItem.kind)
+                        }
+                        className={`flex cursor-grab flex-col items-center gap-3 rounded-xl border px-4 py-3 text-center transition active:cursor-grabbing sm:flex-row sm:items-start sm:justify-between sm:text-left ${workflowNodeAppearanceByKind[nodeItem.kind].sidebarClassName}`}
                       >
-                        Add
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-900">
+                            {nodeItem.badge}
+                          </p>
+                          <p className="mt-1 text-[11px] leading-5 text-slate-500 sm:whitespace-nowrap">
+                            {nodeItem.defaultSubtitle}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className={`w-full sm:w-auto sm:shrink-0 ${workflowNodeAppearanceByKind[nodeItem.kind].sidebarButtonClassName} ${isCompactViewport && mobileAddFeedback===nodeItem.kind ? "animate-pulse ring-2 ring-sky-400/60" : ""}`}
+                          onClick={() => handleAddNodeFromButton(nodeItem.kind)}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <button
+              type="button"
+              aria-label={isNodeSidebarOpen ? "Collapse node sidebar" : "Expand node sidebar"}
+              title={isNodeSidebarOpen ? "Collapse node sidebar" : "Expand node sidebar"}
+              onClick={() => setIsNodeSidebarOpen((currentState) => !currentState)}
+              className={cn(
+                "absolute z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900",
+                isCompactViewport
+                  ? isNodeSidebarOpen
+                    ? "right-4 bottom-[-20px]"
+                    : "right-4 top-3"
+                  : isNodeSidebarOpen
+                    ? "-right-5 top-5"
+                    : "left-3 top-5"
+              )}
+            >
+              <svg
+                className={cn(
+                  "h-4 w-4 transition-transform duration-200",
+                  isCompactViewport
+                    ? isNodeSidebarOpen
+                      ? "-rotate-90"
+                      : "rotate-90"
+                    : isNodeSidebarOpen
+                      ? ""
+                      : "rotate-180"
+                )}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
           </aside>
 
           <div className="bg-[#f1f4f5] p-3 sm:p-5 lg:p-6">

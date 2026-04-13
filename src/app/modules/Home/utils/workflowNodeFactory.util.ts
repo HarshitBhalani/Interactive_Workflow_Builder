@@ -8,6 +8,14 @@ type WorkflowNodeCatalogItem = {
   // helperText: string;
 };
 
+type WorkflowNodeAppearance = {
+  badgeClassName: string;
+  sidebarClassName: string;
+  sidebarButtonClassName: string;
+  cardClassName: string;
+  minimapColor: string;
+};
+
 export const workflowNodeCatalog: WorkflowNodeCatalogItem[] = [
   {
     kind: "start",
@@ -18,13 +26,13 @@ export const workflowNodeCatalog: WorkflowNodeCatalogItem[] = [
   {
     kind: "action",
     badge: "Action",
-    defaultSubtitle: "Add the next task",
+    defaultSubtitle: "Add next task",
     // helperText: "Use this for a task or handoff.",
   },
   { 
     kind: "condition",
     badge: "Condition",
-    defaultSubtitle: "Check a decision rule",
+    defaultSubtitle: "Check decision rule",
     // helperText: "Use this when the flow can branch.",
   },
   {
@@ -34,6 +42,52 @@ export const workflowNodeCatalog: WorkflowNodeCatalogItem[] = [
     // helperText: "Use this to close a branch.",
   },
 ];
+
+export const workflowNodeAppearanceByKind: Record<
+  WorkflowNodeKind,
+  WorkflowNodeAppearance
+> = {
+  start: {
+    badgeClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    sidebarClassName:
+      "border-emerald-200/80 bg-emerald-50/70 hover:border-emerald-300 hover:bg-emerald-50",
+    sidebarButtonClassName:
+      "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50",
+    cardClassName:
+      "border-emerald-200/90 bg-emerald-50",
+    minimapColor: "#10b981",
+  },
+  action: {
+    badgeClassName: "border-sky-200 bg-sky-50 text-sky-700",
+    sidebarClassName:
+      "border-sky-200/80 bg-sky-50/70 hover:border-sky-300 hover:bg-sky-50",
+    sidebarButtonClassName:
+      "border-sky-200 bg-white text-sky-700 hover:bg-sky-50",
+    cardClassName:
+      "border-sky-200/90 bg-sky-50",
+    minimapColor: "#0ea5e9",
+  },
+  condition: {
+    badgeClassName: "border-amber-200 bg-amber-50 text-amber-700",
+    sidebarClassName:
+      "border-amber-200/80 bg-amber-50/70 hover:border-amber-300 hover:bg-amber-50",
+    sidebarButtonClassName:
+      "border-amber-200 bg-white text-amber-700 hover:bg-amber-50",
+    cardClassName:
+      "border-amber-200/90 bg-amber-50",
+    minimapColor: "#f59e0b",
+  },
+  end: {
+    badgeClassName: "border-slate-200 bg-slate-100 text-slate-700",
+    sidebarClassName:
+      "border-slate-200/80 bg-slate-100/70 hover:border-slate-300 hover:bg-slate-100",
+    sidebarButtonClassName:
+      "border-slate-200 bg-white text-slate-700 hover:bg-slate-100",
+    cardClassName:
+      "border-slate-200/90 bg-slate-50",
+    minimapColor: "#64748b",
+  },
+};
 
 const nodeContentByKind = workflowNodeCatalog.reduce<
   Record<WorkflowNodeKind, Omit<WorkflowNodeCatalogItem, "kind">>

@@ -2,14 +2,9 @@
 
 import type { JSX } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
+import { cn } from "@/common/utils/cn.util";
 import type { WorkflowNodeData } from "../types/workflow.type";
-
-const nodeTone = {
-  start: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  action: "border-sky-200 bg-sky-50 text-sky-700",
-  condition: "border-amber-200 bg-amber-50 text-amber-700",
-  end: "border-slate-200 bg-slate-100 text-slate-700",
-} satisfies Record<WorkflowNodeData["kind"], string>;
+import { workflowNodeAppearanceByKind } from "../utils/workflowNodeFactory.util";
 
 export function WorkflowNode({
   id,
@@ -17,24 +12,35 @@ export function WorkflowNode({
   selected,
 }: NodeProps<WorkflowNodeData>): JSX.Element{ //JSX elemet because we are using reactflow and it expects a JSX element to be returned from the node component
   const isCondition = data.kind==="condition";
+  const nodeAppearance = workflowNodeAppearanceByKind[data.kind];
 
   return (
     <div
-      className={`w-55 max-w-[75vw] rounded-2xl border bg-white p-4 transition-shadow sm:w-60 ${
+      className={cn(
+        "group w-55 max-w-[75vw] rounded-2xl border p-4 transition-all sm:w-60",
+        nodeAppearance.cardClassName,
         selected
           ? "border-slate-900 shadow-[0_0_0_2px_rgba(15,23,42,0.08),0_14px_30px_rgba(15,23,42,0.16)]"
-          : "border-slate-200 shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
-      }`}
+          : "shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
+      )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="h-3! w-3! border-2! border-white! bg-slate-400!"
+        className={cn(
+          "h-3.5! w-3.5! border-2! border-white! bg-slate-400! opacity-80! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
+          selected
+            ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(148,163,184,0.16)]!"
+            : ""
+        )}
       />
 
       <div className="flex items-start justify-between gap-3">
         <div
-          className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${nodeTone[data.kind]}`}
+          className={cn(
+            "inline-flex rounded-full border px-2.5 py-1 text-xs font-medium",
+            nodeAppearance.badgeClassName
+          )}
         >
           {data.title}
         </div>
@@ -98,14 +104,24 @@ export function WorkflowNode({
             type="source"
             position={Position.Right}
             style={{ top: "38%" }}
-            className="h-3! w-3! border-2! border-white! bg-emerald-500!"
+            className={cn(
+              "h-3.5! w-3.5! border-2! border-white! bg-emerald-500! opacity-85! shadow-[0_0_0_0_rgba(16,185,129,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(16,185,129,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(16,185,129,0.24)]!",
+              selected
+                ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(16,185,129,0.18)]!"
+                : ""
+            )}
           />
           <Handle
             id="no"
             type="source"
             position={Position.Right}
             style={{ top: "70%" }}
-            className="h-3! w-3! border-2! border-white! bg-rose-500!"
+            className={cn(
+              "h-3.5! w-3.5! border-2! border-white! bg-rose-500! opacity-85! shadow-[0_0_0_0_rgba(244,63,94,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(244,63,94,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(244,63,94,0.24)]!",
+              selected
+                ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(244,63,94,0.18)]!"
+                : ""
+            )}
           />
           <div className="mt-4 flex justify-end gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
             <span>Yes</span>
@@ -116,7 +132,12 @@ export function WorkflowNode({
         <Handle
           type="source"
           position={Position.Right}
-          className="h-3! w-3! border-2! border-white! bg-slate-400!"
+          className={cn(
+            "h-3.5! w-3.5! border-2! border-white! bg-slate-400! opacity-80! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
+            selected
+              ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(148,163,184,0.16)]!"
+              : ""
+          )}
         />
       )}
     </div>

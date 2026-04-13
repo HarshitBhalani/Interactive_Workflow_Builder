@@ -2,6 +2,7 @@
 
 import type { JSX } from "react";
 import { useEffect, useState } from "react";
+import { PictureInPicture, PictureInPicture2 } from "lucide-react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -21,6 +22,7 @@ import type {
   WorkflowGraphEdge,
   WorkflowNodeKind,
 } from "../types/workflow.type";
+import { workflowNodeAppearanceByKind } from "../utils/workflowNodeFactory.util";
 import { WorkflowEdge } from "./workflowEdge.component";
 import { WorkflowNode } from "./workflowNode.component";
 
@@ -30,13 +32,6 @@ const nodeTypes: NodeTypes = {
 
 const edgeTypes = {
   workflowEdge: WorkflowEdge,
-};
-
-const minimapNodeColorByKind: Record<WorkflowNodeKind, string> = {
-  start: "#10b981",
-  action: "#0ea5e9",
-  condition: "#f59e0b",
-  end: "#64748b",
 };
 
 export type WorkflowCanvasProps = {
@@ -57,7 +52,7 @@ export type WorkflowCanvasProps = {
 type Props = WorkflowCanvasProps;
 
 function getMiniMapNodeColor(node: WorkflowCanvasNode): string {
-  return minimapNodeColorByKind[node.data.kind] ?? "#64748b";
+  return workflowNodeAppearanceByKind[node.data.kind]?.minimapColor ?? "#64748b";
 }
 
 function WorkflowCanvas({
@@ -77,6 +72,7 @@ function WorkflowCanvas({
       null
     );
   const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [isMiniMapVisible, setIsMiniMapVisible] = useState(true);
   const canvasEdges = edges.map((edge) => ({
     ...edge,
     type: edge.type ?? "workflowEdge",
@@ -186,16 +182,45 @@ function WorkflowCanvas({
         />
         {!isCompactViewport ? <Controls showInteractive={false} /> : null}
         {!isCompactViewport ? (
-          <MiniMap
-            position="bottom-right"
-            pannable
-            zoomable
-            nodeColor={getMiniMapNodeColor}
-            maskColor="rgba(15, 23, 42, 0.10)"
-            style={{ backgroundColor: "#f8fafc" }}
-            nodeStrokeWidth={3}
-            className="bottom-4! right-4! h-34! w-48! rounded-2xl! border! border-slate-200! bg-white! shadow-[0_10px_30px_rgba(15,23,42,0.12)]!"
-          />
+          <>
+            {isMiniMapVisible ? (
+              <>
+                <button
+                  type="button"
+                  aria-label="Hide minimap"
+                  title="Hide minimap"
+                  onClick={() => setIsMiniMapVisible(false)}
+                  className="absolute bottom-[156px] right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition hover:border-slate-300 hover:text-slate-900"
+                >
+                  <PictureInPicture size={15} />
+                </button>
+                <MiniMap
+                  position="bottom-right"
+                  pannable
+                  zoomable
+                  nodeColor={getMiniMapNodeColor}
+                  maskColor="rgba(226, 232, 240, 0.58)"
+                  maskStrokeColor="rgba(59, 130, 246, 0.55)"
+                  maskStrokeWidth={2}
+                  style={{ width: 192, height: 136, backgroundColor: "#f8fafc" }}
+                  nodeStrokeColor="#ffffff"
+                  nodeBorderRadius={6}
+                  nodeStrokeWidth={2}
+                  className="workflow-minimap bottom-4! right-4! rounded-xl!"
+                />
+              </>
+            ) : (
+              <button
+                type="button"
+                aria-label="Show minimap"
+                title="Show minimap"
+                onClick={() => setIsMiniMapVisible(true)}
+                className="absolute bottom-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition hover:border-slate-300 hover:text-slate-900"
+              >
+                <PictureInPicture2 size={15} />
+              </button>
+            )}
+          </>
         ) : null}
       </ReactFlow>
     </div>
