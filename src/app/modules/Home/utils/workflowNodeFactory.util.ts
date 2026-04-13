@@ -52,7 +52,7 @@ export const workflowNodeAppearanceByKind: Record<
     sidebarClassName:
       "border-emerald-200/80 bg-emerald-50/70 hover:border-emerald-300 hover:bg-emerald-50",
     sidebarButtonClassName:
-      "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50",
+      "border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-white hover:text-emerald-700",
     cardClassName:
       "border-emerald-200/90 bg-emerald-50",
     minimapColor: "#10b981",
@@ -62,7 +62,7 @@ export const workflowNodeAppearanceByKind: Record<
     sidebarClassName:
       "border-sky-200/80 bg-sky-50/70 hover:border-sky-300 hover:bg-sky-50",
     sidebarButtonClassName:
-      "border-sky-200 bg-white text-sky-700 hover:bg-sky-50",
+      "border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-white hover:text-sky-700",
     cardClassName:
       "border-sky-200/90 bg-sky-50",
     minimapColor: "#0ea5e9",
@@ -72,7 +72,7 @@ export const workflowNodeAppearanceByKind: Record<
     sidebarClassName:
       "border-amber-200/80 bg-amber-50/70 hover:border-amber-300 hover:bg-amber-50",
     sidebarButtonClassName:
-      "border-amber-200 bg-white text-amber-700 hover:bg-amber-50",
+      "border-slate-200 bg-white text-slate-700 hover:border-amber-300 hover:bg-white hover:text-amber-700",
     cardClassName:
       "border-amber-200/90 bg-amber-50",
     minimapColor: "#f59e0b",
@@ -82,7 +82,7 @@ export const workflowNodeAppearanceByKind: Record<
     sidebarClassName:
       "border-slate-200/80 bg-slate-100/70 hover:border-slate-300 hover:bg-slate-100",
     sidebarButtonClassName:
-      "border-slate-200 bg-white text-slate-700 hover:bg-slate-100",
+      "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-800",
     cardClassName:
       "border-slate-200/90 bg-slate-50",
     minimapColor: "#64748b",
