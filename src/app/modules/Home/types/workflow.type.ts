@@ -19,6 +19,7 @@ export type WorkflowNodeData = {
   status: WorkflowExecutionStatus;
   output: WorkflowNodeOutput;
   lastError: string | null;
+  validationMessage?: string | null;
   onEdit?: (nodeId: string) => void;
   onDelete?: (nodeId: string) => void;
 };
@@ -46,5 +47,11 @@ export type WorkflowExecutionLog = {
 
 export type WorkflowExecutionResult = {
   output: WorkflowNodeOutput;
-  nextBranch?: WorkflowConditionBranch;
+  nextBranches?: WorkflowConditionBranch[];
+};
+
+export type WorkflowValidationSummary = {
+  hasErrors: boolean;
+  workflowErrors: string[];
+  nodeErrors: Record<string, string[]>;
 };

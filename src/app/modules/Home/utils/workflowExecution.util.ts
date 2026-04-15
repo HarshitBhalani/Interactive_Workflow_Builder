@@ -36,44 +36,32 @@ function getStartNode(nodes: WorkflowGraphNode[], edges: WorkflowGraphEdge[]): W
   return nodes.find((node) => !targetNodeIds.has(node.id)) ?? nodes[0] ?? null;
 }
 
-function getDefaultBranch(node: WorkflowGraphNode): WorkflowConditionBranch {
-  const preferredBranch = node.data.config.preferredBranch;
-
-  switch (preferredBranch) {
-    case "no":
-      return "no";
-    case "yes":
-      return "yes";
-    default:
-      return "yes";
-  }
-}
-
-function resolveNextNodeId(
+function resolveNextNodeIds(
   node: WorkflowGraphNode,
   edges: WorkflowGraphEdge[],
-  branch?: WorkflowConditionBranch,
-): string | null {
+  branches?: WorkflowConditionBranch[],
+): string[] {
 
   const outgoingEdges = getOutgoingEdges(node.id, edges);
 
   switch (node.data.kind) {
 
     case "condition": {
-      const matchedEdge = outgoingEdges.find(
-        (edge) => edge.sourceHandle === branch,
+      const activeBranches = branches ?? ["yes", "no"];
+      const matchedEdges = outgoingEdges.filter((edge) =>
+        activeBranches.includes(edge.sourceHandle as WorkflowConditionBranch),
       );
 
-      return matchedEdge?.target ?? null;
+      return matchedEdges.map((edge) => edge.target);
     }
 
     case "end":
-      return null;
+      return [];
     case "start":
     case "action":
-      return outgoingEdges[0]?.target ?? null;
+      return outgoingEdges[0]?.target ? [outgoingEdges[0].target] : [];
     default:
-      return null;
+      return [];
 
   }
 }
@@ -107,17 +95,16 @@ const executeActionNode:WorkflowExecutor=async (node,context) => {
 };
 
 const executeConditionNode:WorkflowExecutor =async (node,context) => {
-
-  const nextBranch = getDefaultBranch(node);
+  const nextBranches: WorkflowConditionBranch[] = ["yes", "no"];
 
   return {
     output: {
       nodeId: node.id,
       title: node.data.title,
-      branch: nextBranch,
+      branchesChecked: nextBranches,
       previousOutput: context.input,
     },
-    nextBranch,
+    nextBranches,
   };
 };
 
@@ -170,35 +157,28 @@ export function getExecutionOrder(
   const orderedNodes: WorkflowGraphNode[] = [];
   const visitedNodeIds = new Set<string>();
   let currentNode: WorkflowGraphNode | null = startNode;
-  let branch: WorkflowConditionBranch | undefined;
 
   while (currentNode && !visitedNodeIds.has(currentNode.id)){
     orderedNodes.push(currentNode);
     visitedNodeIds.add(currentNode.id);
 
-    branch =
-      currentNode.data.kind === "condition"? getDefaultBranch(currentNode): undefined;
-
-    const nextNodeId = resolveNextNodeId(currentNode, edges, branch);
-    currentNode =nextNodeId ? nodeLookup.get(nextNodeId) ?? null : null;
+    const nextNodeId: string | undefined = resolveNextNodeIds(currentNode, edges)[0];
+    currentNode = nextNodeId ? nodeLookup.get(nextNodeId) ?? null : null;
   }
 
   return orderedNodes;
 }
 
-export function getNextNodeForResult(
+export function getNextNodesForResult(
   currentNode: WorkflowGraphNode,
   nodes: WorkflowGraphNode[],
   edges: WorkflowGraphEdge[],
   result: WorkflowExecutionResult,
-
-): WorkflowGraphNode | null {
+): WorkflowGraphNode[] {
   
-  const nextNodeId = resolveNextNodeId(currentNode, edges, result.nextBranch);
+  const nextNodeIds = resolveNextNodeIds(currentNode, edges, result.nextBranches);
 
-  if (!nextNodeId) {
-    return null;
-  }
-
-  return nodes.find((node) => node.id === nextNodeId) ?? null;
+  return nextNodeIds
+    .map((nextNodeId) => nodes.find((node) => node.id === nextNodeId) ?? null)
+    .filter((node): node is WorkflowGraphNode => node !== null);
 }

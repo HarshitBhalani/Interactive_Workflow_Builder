@@ -1,4 +1,5 @@
 import type {
+  WorkflowNodeConfig,
   WorkflowGraphEdge,
   WorkflowGraphNode,
   WorkflowNodeKind,
@@ -56,6 +57,57 @@ function isWorkflowEdge(edge: unknown): edge is WorkflowGraphEdge {
   );
 }
 
+function createDefaultNodeConfig(kind: WorkflowNodeKind): WorkflowNodeConfig {
+  switch (kind) {
+    case "action":
+      return {
+        delayMs: 600,
+      };
+    case "condition":
+      return {
+        preferredBranch: "yes",
+      };
+    case "start":
+    case "end":
+    default:
+      return {};
+  }
+}
+
+function normalizeWorkflowNodeConfig(
+  kind: WorkflowNodeKind,
+  config: unknown,
+): WorkflowNodeConfig {
+  const defaultConfig = createDefaultNodeConfig(kind);
+
+  if (!isPlainObject(config)) {
+    return defaultConfig;
+  }
+
+  switch (kind) {
+    case "action":
+      return {
+        ...defaultConfig,
+        delayMs:
+          typeof config.delayMs === "number" && config.delayMs > 0
+            ? config.delayMs
+            : defaultConfig.delayMs,
+      };
+    case "condition":
+      return {
+        ...defaultConfig,
+        preferredBranch:
+          config.preferredBranch === "no" || config.preferredBranch === "yes"
+            ? config.preferredBranch
+            : defaultConfig.preferredBranch,
+      };
+    case "start":
+    case "end":
+    default:
+      return defaultConfig;
+  }
+}
+
 export function normalizeWorkflowNode(node: WorkflowGraphNode): WorkflowGraphNode {
   return {
     ...node,
@@ -64,7 +116,7 @@ export function normalizeWorkflowNode(node: WorkflowGraphNode): WorkflowGraphNod
       title: node.data.title,
       subtitle: node.data.subtitle,
       kind: node.data.kind,
-      config: isPlainObject(node.data.config) ? node.data.config : {},
+      config: normalizeWorkflowNodeConfig(node.data.kind, node.data.config),
       status: "idle",
       output: null,
       lastError: null,

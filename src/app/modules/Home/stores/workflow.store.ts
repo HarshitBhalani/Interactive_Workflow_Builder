@@ -27,7 +27,7 @@ import type {
 } from "../types/workflow.type";
 import {
   executeWorkflowNode,
-  getNextNodeForResult,
+  getNextNodesForResult,
 } from "../utils/workflowExecution.util";
 import {
   createWorkflowSnapshot,
@@ -37,7 +37,10 @@ import {
   createWorkflowNode,
   createWorkflowNodeCopy,
 } from "../utils/workflowNodeFactory.util";
-import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
+import {
+  isValidWorkflowConnection,
+  validateWorkflow,
+} from "../utils/workflowValidation.util";
 
 const MAX_HISTORY_LENGTH = 50;
 
@@ -434,12 +437,32 @@ export const useWorkflowStore = create<WorkflowStore>()(
       return;
     }
 
-    const startNodeIds = new Set(initialState.edges.map((edge) => edge.target));
-    const startNode =
-      initialState.nodes.find((node) => !startNodeIds.has(node.id)) ??
-      initialState.nodes[0];
+    const validationSummary = validateWorkflow(initialState.nodes, initialState.edges);
 
-    if (!startNode) {
+    if (validationSummary.hasErrors) {
+      const validationMessages = [
+        ...validationSummary.workflowErrors,
+        ...Object.entries(validationSummary.nodeErrors).flatMap(([nodeId, messages]) =>
+          messages.map((message) => `${nodeId}: ${message}`),
+        ),
+      ];
+
+      set(() => ({
+        isRunning: false,
+        logs: [
+          createExecutionLog("Workflow validation failed.", "error"),
+          ...validationMessages.map((message) =>
+            createExecutionLog(message, "error"),
+          ),
+        ],
+      }));
+      return;
+    }
+
+    const startNodeIds = new Set(initialState.edges.map((edge) => edge.target));
+    const startNodes = initialState.nodes.filter((node) => !startNodeIds.has(node.id));
+
+    if (startNodes.length === 0) {
       set((state) => ({
         ...state,
         logs: [createExecutionLog("No nodes available to run.", "error")],
@@ -453,12 +476,31 @@ export const useWorkflowStore = create<WorkflowStore>()(
       nodes: resetNodeRuntime(state.nodes),
     }));
 
-    let currentNode: WorkflowGraphNode | null = startNode;
-    let previousOutput: WorkflowNodeOutput = null;
+    const executionQueue: Array<{
+      node: WorkflowGraphNode;
+      input: WorkflowNodeOutput;
+    }> = startNodes.map((node) => ({
+      node,
+      input: null,
+    }));
     const visitedNodeIds = new Set<string>();
+    const queuedNodeIds = new Set(executionQueue.map((item) => item.node.id));
 
-    while (currentNode && !visitedNodeIds.has(currentNode.id)) {
-      const activeNode = currentNode;
+    while (executionQueue.length > 0) {
+      const nextQueueItem = executionQueue.shift();
+
+      if (!nextQueueItem) {
+        break;
+      }
+
+      const activeNode = nextQueueItem.node;
+      const currentInput = nextQueueItem.input;
+
+      queuedNodeIds.delete(activeNode.id);
+
+      if (visitedNodeIds.has(activeNode.id)) {
+        continue;
+      }
 
       visitedNodeIds.add(activeNode.id);
 
@@ -478,7 +520,13 @@ export const useWorkflowStore = create<WorkflowStore>()(
       }));
 
       try {
-        const result = await executeWorkflowNode(activeNode, previousOutput);
+        const result = await executeWorkflowNode(activeNode, currentInput);
+        const nextNodes = getNextNodesForResult(
+          activeNode,
+          get().nodes,
+          get().edges,
+          result,
+        );
 
         set((state) => ({
           nodes: updateNodeRuntime(state.nodes, activeNode.id, {
@@ -496,13 +544,30 @@ export const useWorkflowStore = create<WorkflowStore>()(
           ],
         }));
 
-        previousOutput = result.output;
-        currentNode = getNextNodeForResult(
-          activeNode,
-          get().nodes,
-          get().edges,
-          result,
-        );
+        if (nextNodes.length > 1) {
+          set((state) => ({
+            logs: [
+              ...state.logs,
+              createExecutionLog(
+                `${activeNode.data.title} branched into ${nextNodes.length} paths.`,
+                "info",
+                activeNode.id,
+              ),
+            ],
+          }));
+        }
+
+        nextNodes.forEach((nextNode) => {
+          if (visitedNodeIds.has(nextNode.id) || queuedNodeIds.has(nextNode.id)) {
+            return;
+          }
+
+          executionQueue.push({
+            node: nextNode,
+            input: result.output,
+          });
+          queuedNodeIds.add(nextNode.id);
+        });
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown execution error.";

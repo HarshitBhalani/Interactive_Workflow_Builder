@@ -162,6 +162,7 @@ export function createWorkflowNode(
 ): WorkflowGraphNode {
   const nodeNumber = getNextNodeNumber(kind, nodes);
   const nodeContent = nodeContentByKind[kind];
+  const generatedTitle = `${nodeContent.badge}-${nodeNumber}`;
 
   return {
     id: `${kind}-${nodeNumber}`,
@@ -169,7 +170,7 @@ export function createWorkflowNode(
     position: position ?? getNextNodePosition(nodes),
     selected: true,
     data: {
-      title: nodeContent.badge,
+      title: generatedTitle,
       subtitle: nodeContent.defaultSubtitle,
       kind,
       config: createDefaultNodeConfig(kind),
@@ -186,6 +187,8 @@ export function createWorkflowNodeCopy(
   position?: XYPosition,
 ): WorkflowGraphNode {
   const nodeNumber = getNextNodeNumber(nodeToCopy.data.kind, nodes);
+  const nodeContent = nodeContentByKind[nodeToCopy.data.kind];
+  const generatedTitle = `${nodeContent.badge}-${nodeNumber}`;
 
   return {
     ...nodeToCopy,
@@ -194,6 +197,7 @@ export function createWorkflowNodeCopy(
     selected: true,
     data: {
       ...nodeToCopy.data,
+      title: generatedTitle,
 
       config: {
         ...nodeToCopy.data.config,

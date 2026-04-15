@@ -23,6 +23,7 @@ import { cn } from "@/common/utils/cn.util";
 import { useWorkflowStore } from "../stores/workflow.store";
 import type {
   WorkflowExecutionLog,
+  WorkflowValidationSummary,
   WorkflowCanvasNode,
   WorkflowGraphEdge,
   WorkflowGraphNode,
@@ -37,7 +38,10 @@ import {
   workflowNodeAppearanceByKind,
   workflowNodeCatalog,
 } from "../utils/workflowNodeFactory.util";
-import { isValidWorkflowConnection } from "../utils/workflowValidation.util";
+import {
+  isValidWorkflowConnection,
+  validateWorkflow,
+} from "../utils/workflowValidation.util";
 import WorkflowCanvas from "./workflowCanvas.component";
 import { WorkflowHeading } from "./workflowHeading.component";
 
@@ -65,6 +69,12 @@ type MobileDragState = {
   touchId: number;
   clientX: number;
   clientY: number;
+};
+
+type ValidationIssueItem = {
+  key: string;
+  nodeId: string | null;
+  message: string;
 };
 
 const dragDataKey="application/workflow-node-kind";
@@ -157,6 +167,7 @@ export function WorkflowShell(): JSX.Element {
   const [mobileAddFeedback, setMobileAddFeedback] = useState<WorkflowNodeKind | null>(null);
   const [isNodeSidebarOpen, setIsNodeSidebarOpen] = useState(true);
   const [isExecutionLogsOpen, setIsExecutionLogsOpen] = useState(true);
+  const [showValidationFeedback, setShowValidationFeedback] = useState(false);
   const [mobileDragState, setMobileDragState] = useState<MobileDragState | null>(null);
 
 
@@ -169,11 +180,35 @@ export function WorkflowShell(): JSX.Element {
 
 
   const selectedCanvasNode =nodes.find((node) => node.selected) ?? null;
+  const validationSummary: WorkflowValidationSummary = validateWorkflow(nodes, edges);
+  const firstValidationMessageByNodeId = Object.fromEntries(
+    Object.entries(validationSummary.nodeErrors).map(([nodeId, messages]) => [
+      nodeId,
+      messages[0] ?? null,
+    ]),
+  );
+  const validationIssueItems: ValidationIssueItem[] = [
+    ...validationSummary.workflowErrors.map((message, index) => ({
+      key: `workflow-${index}`,
+      nodeId: null,
+      message,
+    })),
+    ...Object.entries(validationSummary.nodeErrors).flatMap(([nodeId, messages]) =>
+      messages.map((message, index) => ({
+        key: `${nodeId}-${index}`,
+        nodeId,
+        message,
+      })),
+    ),
+  ];
 
   const canvasNodes: WorkflowCanvasNode[]=nodes.map((node) => ({
     ...node,
     data: {
       ...node.data,
+      validationMessage: showValidationFeedback
+        ? (firstValidationMessageByNodeId[node.id] ?? null)
+        : null,
       onEdit: openNodeEditor,
       onDelete: deleteNode,
     },
@@ -252,6 +287,14 @@ export function WorkflowShell(): JSX.Element {
       x: (bounds.width / 2 - x) / zoom,
       y: (bounds.height / 2 - y) / zoom,
     };
+  }
+
+  function handleCanvasNodesChange(changes: Parameters<typeof handleNodesChange>[0]): void {
+    handleNodesChange(changes);
+  }
+
+  function handleCanvasEdgesChange(changes: Parameters<typeof handleEdgesChange>[0]): void {
+    handleEdgesChange(changes);
   }
 
   function handleCanvasNodesDelete(deletedNodes: WorkflowCanvasNode[]): void{
@@ -352,6 +395,24 @@ export function WorkflowShell(): JSX.Element {
 
   }
 
+  function focusNodeById(nodeId: string): void {
+    const targetNode = nodes.find((node) => node.id === nodeId);
+    const reactFlowInstance = canvasState.reactFlowInstance;
+
+    if (!targetNode || !reactFlowInstance) {
+      return;
+    }
+
+    reactFlowInstance.setCenter(
+      targetNode.position.x + 120,
+      targetNode.position.y + 60,
+      {
+        zoom: Math.max(reactFlowInstance.getZoom(), 0.9),
+        duration: 300,
+      },
+    );
+  }
+
   function handleCanvasInit(
     instance:ReactFlowInstance<WorkflowCanvasNode,WorkflowGraphEdge>
   ): void {
@@ -373,7 +434,7 @@ export function WorkflowShell(): JSX.Element {
   },[redo]);
 
   const handleReset = useCallback(():void=>{
-
+    setShowValidationFeedback(false);
     closeNodeEditor();
     closeJsonModal();
     resetWorkflow();
@@ -388,6 +449,7 @@ export function WorkflowShell(): JSX.Element {
   },[isCompactViewport, resetWorkflow]);
 
   const handleRunWorkflow=useCallback(():void=>{
+    setShowValidationFeedback(true);
     closeNodeEditor();
     closeJsonModal();
     void runWorkflow();
@@ -514,6 +576,7 @@ export function WorkflowShell(): JSX.Element {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   function importWorkflow(): void {
     try {
+      setShowValidationFeedback(false);
       const snapshot = parseWorkflowSnapshot(jsonModal.workflowJson);
 
       loadWorkflowSnapshot(snapshot);
@@ -787,6 +850,7 @@ export function WorkflowShell(): JSX.Element {
             </Button>
 
             <Button
+              variant="outline"
               type="button"
               onClick={openExportModal}
               className="col-span-2 w-full sm:col-span-1 sm:w-auto"
@@ -951,8 +1015,8 @@ export function WorkflowShell(): JSX.Element {
                   key={viewportResetToken}
                   nodes={canvasNodes}
                   edges={edges}
-                  onNodesChange={handleNodesChange}
-                  onEdgesChange={handleEdgesChange}
+                  onNodesChange={handleCanvasNodesChange}
+                  onEdgesChange={handleCanvasEdgesChange}
                   onNodesDelete={handleCanvasNodesDelete}
                   onConnect={handleConnect}
                   isValidConnection={validateConnection}
@@ -1006,10 +1070,51 @@ export function WorkflowShell(): JSX.Element {
               </CardHeader>
 
               <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-5 py-5">
+                {showValidationFeedback && validationSummary.hasErrors ? (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    <div className="font-medium">Validation issues found</div>
+                    <div
+                      className={cn(
+                        "mt-2 space-y-2",
+                        validationIssueItems.length > 5 ? "max-h-64 overflow-y-auto pr-1" : "",
+                      )}
+                    >
+                      {validationIssueItems.map((issue) =>
+                        issue.nodeId ? (
+                          <button
+                            key={issue.key}
+                            type="button"
+                            onClick={() => {
+                              if (issue.nodeId) {
+                                focusNodeById(issue.nodeId);
+                              }
+                            }}
+                            className="block w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-left text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                          >
+                            <span className="font-medium">{issue.nodeId}</span>: {issue.message}
+                          </button>
+                        ) : (
+                          <div
+                            key={issue.key}
+                            className="rounded-lg border border-rose-200 bg-white px-3 py-2"
+                          >
+                            {issue.message}
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-slate-500">
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline">{logs.length} logs</Badge>
                     <Badge variant="outline">{isRunning ? "Active run" : "Idle"}</Badge>
+                    {showValidationFeedback && validationSummary.hasErrors ? (
+                      <Badge variant="outline" className="border-rose-200 text-rose-700">
+                        Validation errors
+                      </Badge>
+                    ) : null}
                   </div>
 
                   <Button
