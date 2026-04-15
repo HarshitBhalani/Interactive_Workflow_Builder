@@ -77,6 +77,8 @@ type ValidationIssueItem = {
   message: string;
 };
 
+type ExecutionLogsToggleTone = "running" | "success" | "error";
+
 const dragDataKey="application/workflow-node-kind";
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -167,6 +169,7 @@ export function WorkflowShell(): JSX.Element {
   const [mobileAddFeedback, setMobileAddFeedback] = useState<WorkflowNodeKind | null>(null);
   const [isNodeSidebarOpen, setIsNodeSidebarOpen] = useState(true);
   const [isExecutionLogsOpen, setIsExecutionLogsOpen] = useState(true);
+  const [shouldHighlightExecutionLogsToggle, setShouldHighlightExecutionLogsToggle] = useState(false);
   const [showValidationFeedback, setShowValidationFeedback] = useState(false);
   const [mobileDragState, setMobileDragState] = useState<MobileDragState | null>(null);
 
@@ -241,6 +244,12 @@ export function WorkflowShell(): JSX.Element {
   useEffect(() => {
     setIsExecutionLogsOpen(!isCompactViewport);
   }, [isCompactViewport]);
+
+  useEffect(() => {
+    if (isExecutionLogsOpen) {
+      setShouldHighlightExecutionLogsToggle(false);
+    }
+  }, [isExecutionLogsOpen]);
 
   useEffect(() => {
     if (!isCompactViewport || typeof document === "undefined") {
@@ -395,6 +404,33 @@ export function WorkflowShell(): JSX.Element {
 
   }
 
+  function getExecutionLogsToggleClassName(): string {
+    if (!shouldHighlightExecutionLogsToggle) {
+      return "";
+    }
+
+    const hasErrorLog = logs.some((log) => log.status === "error");
+    const hasSuccessLog = logs.some((log) => log.status === "success");
+
+    let tone: ExecutionLogsToggleTone = "running";
+
+    if (hasErrorLog) {
+      tone = "error";
+    } else if (!isRunning && hasSuccessLog) {
+      tone = "success";
+    }
+
+    switch (tone) {
+      case "success":
+        return "animate-pulse border-emerald-300 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-300/70";
+      case "error":
+        return "animate-pulse border-rose-300 bg-rose-50 text-rose-700 ring-2 ring-rose-300/70";
+      case "running":
+      default:
+        return "animate-pulse border-amber-300 bg-amber-50 text-amber-700 ring-2 ring-amber-300/70";
+    }
+  }
+
   function focusNodeById(nodeId: string): void {
     const targetNode = nodes.find((node) => node.id === nodeId);
     const reactFlowInstance = canvasState.reactFlowInstance;
@@ -450,13 +486,15 @@ export function WorkflowShell(): JSX.Element {
 
   const handleRunWorkflow=useCallback(():void=>{
     setShowValidationFeedback(true);
+    setShouldHighlightExecutionLogsToggle(!isExecutionLogsOpen);
     closeNodeEditor();
     closeJsonModal();
     void runWorkflow();
-  },[runWorkflow]);
+  },[isExecutionLogsOpen, runWorkflow]);
 
   const handleResetExecution=useCallback((): void => 
     {
+    setShouldHighlightExecutionLogsToggle(false);
     resetExecution();
   },[resetExecution]);
 
@@ -1089,7 +1127,7 @@ export function WorkflowShell(): JSX.Element {
                                 focusNodeById(issue.nodeId);
                               }
                             }}
-                            className="block w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-left text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                            className="block w-full cursor-pointer rounded-lg border border-rose-200 bg-white px-3 py-2 text-left text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
                           >
                             <span className="font-medium">{issue.nodeId}</span>: {issue.message}
                           </button>
@@ -1187,6 +1225,7 @@ export function WorkflowShell(): JSX.Element {
               onClick={() => setIsExecutionLogsOpen(true)}
               className={cn(
                 "absolute z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900",
+                getExecutionLogsToggleClassName(),
                 isCompactViewport ? "-left-2 top-1/2 -translate-y-1/2" : "lg:right-4 lg:top-5",
               )}
             >

@@ -124,6 +124,9 @@ export function validateWorkflowNode(
   edges: WorkflowGraphEdge[],
 ): string[] {
   const errors: string[] = [];
+  const incomingEdges = getIncomingEdges(node.id, edges);
+  const outgoingEdges = getOutgoingEdges(node.id, edges);
+  const hasMultipleNodes = nodes.length > 1;
 
   if (!node.data.title.trim()) {
     errors.push("Title is required.");
@@ -132,7 +135,6 @@ export function validateWorkflowNode(
   switch (node.data.kind) {
     case "start":
       {
-        const incomingEdges = getIncomingEdges(node.id, edges);
         const incomingFromInvalidNode = incomingEdges.some((edge) => {
           const sourceNode = nodes.find((candidateNode) => candidateNode.id === edge.source);
 
@@ -146,6 +148,10 @@ export function validateWorkflowNode(
         if (incomingEdges.length > 1) {
           errors.push("Start node can only have one incoming condition connection.");
         }
+
+        if (outgoingEdges.length === 0 && hasMultipleNodes) {
+          errors.push("Start node must connect to the next step.");
+        }
       }
       break;
 
@@ -153,12 +159,23 @@ export function validateWorkflowNode(
       if ((node.data.config.delayMs ?? 0) <= 0) {
         errors.push("Action delay must be greater than 0.");
       }
+
+      if (incomingEdges.length === 0 && hasMultipleNodes) {
+        errors.push("Action node must have an incoming connection.");
+      }
+
+      if (outgoingEdges.length === 0) {
+        errors.push("Action node must connect to the next step.");
+      }
       break;
 
     case "condition": {
-      const outgoingEdges = getOutgoingEdges(node.id, edges);
       const hasYesBranch = outgoingEdges.some((edge) => edge.sourceHandle === "yes");
       const hasNoBranch = outgoingEdges.some((edge) => edge.sourceHandle === "no");
+
+      if (incomingEdges.length === 0 && hasMultipleNodes) {
+        errors.push("Condition node must have an incoming connection.");
+      }
 
       if (!hasYesBranch) {
         errors.push("Condition node must have a Yes branch.");
@@ -171,7 +188,11 @@ export function validateWorkflowNode(
     }
 
     case "end":
-      if (getOutgoingEdges(node.id, edges).length > 0) {
+      if (incomingEdges.length === 0 && hasMultipleNodes) {
+        errors.push("End node must have an incoming connection.");
+      }
+
+      if (outgoingEdges.length > 0) {
         errors.push("End node cannot have outgoing connections.");
       }
       break;

@@ -183,6 +183,27 @@ function updateNodeRuntime(
   );
 }
 
+function markNodesRunning(
+  nodes: WorkflowGraphNode[],
+  nodeIds: string[],
+): WorkflowGraphNode[] {
+  const runningNodeIds = new Set(nodeIds);
+
+  return nodes.map((node) =>
+    runningNodeIds.has(node.id)
+      ? {
+          ...node,
+          data: {
+            ...node.data,
+            status: "running",
+            output: null,
+            lastError: null,
+          },
+        }
+      : node,
+  );
+}
+
 function createExecutionLog(
   message: string,
   status: WorkflowExecutionLog["status"],
@@ -473,7 +494,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
     set((state) => ({
       isRunning: true,
       logs: [createExecutionLog("Workflow execution started.", "info")],
-      nodes: resetNodeRuntime(state.nodes),
+      nodes: markNodesRunning(
+        resetNodeRuntime(state.nodes),
+        startNodes.map((node) => node.id),
+      ),
     }));
 
     const executionQueue: Array<{
@@ -554,6 +578,19 @@ export const useWorkflowStore = create<WorkflowStore>()(
                 activeNode.id,
               ),
             ],
+          }));
+        }
+
+        const nextNodeIdsToRun = nextNodes
+          .filter(
+            (nextNode) =>
+              !visitedNodeIds.has(nextNode.id) && !queuedNodeIds.has(nextNode.id),
+          )
+          .map((nextNode) => nextNode.id);
+
+        if (nextNodeIdsToRun.length > 0) {
+          set((state) => ({
+            nodes: markNodesRunning(state.nodes, nextNodeIdsToRun),
           }));
         }
 
