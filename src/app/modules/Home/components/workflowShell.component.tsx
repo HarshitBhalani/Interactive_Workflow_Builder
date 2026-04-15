@@ -169,7 +169,8 @@ export function WorkflowShell(): JSX.Element {
   const [mobileAddFeedback, setMobileAddFeedback] = useState<WorkflowNodeKind | null>(null);
   const [isNodeSidebarOpen, setIsNodeSidebarOpen] = useState(true);
   const [isExecutionLogsOpen, setIsExecutionLogsOpen] = useState(true);
-  const [shouldHighlightExecutionLogsToggle, setShouldHighlightExecutionLogsToggle] = useState(false);
+  const [executionLogsAttentionRunId, setExecutionLogsAttentionRunId] = useState(0);
+  const [acknowledgedExecutionLogsRunId, setAcknowledgedExecutionLogsRunId] = useState(0);
   const [showValidationFeedback, setShowValidationFeedback] = useState(false);
   const [mobileDragState, setMobileDragState] = useState<MobileDragState | null>(null);
 
@@ -247,9 +248,9 @@ export function WorkflowShell(): JSX.Element {
 
   useEffect(() => {
     if (isExecutionLogsOpen) {
-      setShouldHighlightExecutionLogsToggle(false);
+      setAcknowledgedExecutionLogsRunId(executionLogsAttentionRunId);
     }
-  }, [isExecutionLogsOpen]);
+  }, [executionLogsAttentionRunId, isExecutionLogsOpen]);
 
   useEffect(() => {
     if (!isCompactViewport || typeof document === "undefined") {
@@ -405,12 +406,18 @@ export function WorkflowShell(): JSX.Element {
   }
 
   function getExecutionLogsToggleClassName(): string {
-    if (!shouldHighlightExecutionLogsToggle) {
+    if (logs.length === 0) {
       return "";
     }
 
     const hasErrorLog = logs.some((log) => log.status === "error");
     const hasSuccessLog = logs.some((log) => log.status === "success");
+    const shouldHighlightExecutionLogsToggle =
+      !isExecutionLogsOpen &&
+      executionLogsAttentionRunId > acknowledgedExecutionLogsRunId;
+    const animationClassName = shouldHighlightExecutionLogsToggle
+      ? "animate-pulse"
+      : "";
 
     let tone: ExecutionLogsToggleTone = "running";
 
@@ -422,12 +429,21 @@ export function WorkflowShell(): JSX.Element {
 
     switch (tone) {
       case "success":
-        return "animate-pulse border-emerald-300 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-300/70";
+        return cn(
+          "border-emerald-300 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-300/70",
+          animationClassName,
+        );
       case "error":
-        return "animate-pulse border-rose-300 bg-rose-50 text-rose-700 ring-2 ring-rose-300/70";
+        return cn(
+          "border-rose-300 bg-rose-50 text-rose-700 ring-2 ring-rose-300/70",
+          animationClassName,
+        );
       case "running":
       default:
-        return "animate-pulse border-amber-300 bg-amber-50 text-amber-700 ring-2 ring-amber-300/70";
+        return cn(
+          "border-amber-300 bg-amber-50 text-amber-700 ring-2 ring-amber-300/70",
+          animationClassName,
+        );
     }
   }
 
@@ -486,7 +502,10 @@ export function WorkflowShell(): JSX.Element {
 
   const handleRunWorkflow=useCallback(():void=>{
     setShowValidationFeedback(true);
-    setShouldHighlightExecutionLogsToggle(!isExecutionLogsOpen);
+    setExecutionLogsAttentionRunId((currentRunId) => currentRunId + 1);
+    if (isExecutionLogsOpen) {
+      setAcknowledgedExecutionLogsRunId((currentRunId) => currentRunId + 1);
+    }
     closeNodeEditor();
     closeJsonModal();
     void runWorkflow();
@@ -494,7 +513,8 @@ export function WorkflowShell(): JSX.Element {
 
   const handleResetExecution=useCallback((): void => 
     {
-    setShouldHighlightExecutionLogsToggle(false);
+    setExecutionLogsAttentionRunId(0);
+    setAcknowledgedExecutionLogsRunId(0);
     resetExecution();
   },[resetExecution]);
 
@@ -891,14 +911,14 @@ export function WorkflowShell(): JSX.Element {
               variant="outline"
               type="button"
               onClick={openExportModal}
-              className="col-span-2 w-full sm:col-span-1 sm:w-auto"
+              className="w-full sm:w-auto"
             >Export JSON</Button>
 
             <div className="col-span-2 flex flex-col gap-2 sm:col-span-1">
               <Button
                 type="button"
                 onClick={handleRunWorkflow}
-                className="w-full sm:w-auto"
+                className="w-full"
                 disabled={isRunning || nodes.length === 0}
               >
                 {isRunning ? "Running..." : "Run Workflow"}
