@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow"; //bcaz Zustand me object selector use karte time unnecessary re-render avoid karne ke liye
 import type { JSX } from "react";
+import { ChevronDown, ChevronUp, PanelLeftClose, PanelRightClose } from "lucide-react";
 import type {
   Connection,
   IsValidConnection,
@@ -21,6 +22,7 @@ import {
 import { cn } from "@/common/utils/cn.util";
 import { useWorkflowStore } from "../stores/workflow.store";
 import type {
+  WorkflowExecutionLog,
   WorkflowCanvasNode,
   WorkflowGraphEdge,
   WorkflowGraphNode,
@@ -99,10 +101,14 @@ export function WorkflowShell(): JSX.Element {
       updateNodeDetails: state.updateNodeDetails,
       loadWorkflowSnapshot: state.loadWorkflowSnapshot,
       resetWorkflow: state.resetWorkflow,
+      resetExecution: state.resetExecution,
+      runWorkflow: state.runWorkflow,
       undo: state.undo,
       redo: state.redo,
       canUndo: state.canUndo,
       canRedo: state.canRedo,
+      isRunning: state.isRunning,
+      logs: state.logs,
 
     })),
 
@@ -120,10 +126,14 @@ export function WorkflowShell(): JSX.Element {
     updateNodeDetails,
     loadWorkflowSnapshot,
     resetWorkflow,
+    resetExecution,
+    runWorkflow,
     undo,
     redo,
     canUndo,
     canRedo,
+    isRunning,
+    logs,
   } = workflowStore;
 
   const [nodeEditor,setNodeEditor] = useState<NodeEditorState>({ 
@@ -146,6 +156,7 @@ export function WorkflowShell(): JSX.Element {
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [mobileAddFeedback, setMobileAddFeedback] = useState<WorkflowNodeKind | null>(null);
   const [isNodeSidebarOpen, setIsNodeSidebarOpen] = useState(true);
+  const [isExecutionLogsOpen, setIsExecutionLogsOpen] = useState(true);
   const [mobileDragState, setMobileDragState] = useState<MobileDragState | null>(null);
 
 
@@ -191,6 +202,29 @@ export function WorkflowShell(): JSX.Element {
   useEffect(() => {
     setIsNodeSidebarOpen(!isCompactViewport);
   }, [isCompactViewport]);
+
+  useEffect(() => {
+    setIsExecutionLogsOpen(!isCompactViewport);
+  }, [isCompactViewport]);
+
+  useEffect(() => {
+    if (!isCompactViewport || typeof document === "undefined") {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    if (isExecutionLogsOpen) {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [isCompactViewport, isExecutionLogsOpen]);
 
   useEffect(() => {
     if (!isCompactViewport || !mobileAddFeedback) {
@@ -297,6 +331,27 @@ export function WorkflowShell(): JSX.Element {
     connectNodes(connection);
   }
 
+  function getLogCardClassName(log:WorkflowExecutionLog):string 
+  {
+    switch (log.status) {
+      case "error":
+        return "border-rose-200 bg-rose-50 text-rose-700";
+
+      case "success":
+        return "border-emerald-200 bg-emerald-50 text-emerald-700";
+
+      case "running":
+        return "border-amber-200 bg-amber-50 text-amber-700";
+
+      case "info":
+        return "border-sky-200 bg-sky-50 text-sky-700";
+
+      default:
+        return "border-slate-200 bg-slate-50 text-slate-700";
+    }
+
+  }
+
   function handleCanvasInit(
     instance:ReactFlowInstance<WorkflowCanvasNode,WorkflowGraphEdge>
   ): void {
@@ -331,6 +386,17 @@ export function WorkflowShell(): JSX.Element {
       });
     }
   },[isCompactViewport, resetWorkflow]);
+
+  const handleRunWorkflow=useCallback(():void=>{
+    closeNodeEditor();
+    closeJsonModal();
+    void runWorkflow();
+  },[runWorkflow]);
+
+  const handleResetExecution=useCallback((): void => 
+    {
+    resetExecution();
+  },[resetExecution]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   function handleAddNode(kind:WorkflowNodeKind): void {
@@ -703,34 +769,13 @@ export function WorkflowShell(): JSX.Element {
   }, [addNode, canvasState.reactFlowInstance, isCompactViewport, mobileDragState]);
 
   return (
-    <main className="min-h-screen overflow-x-clip bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4">
-      <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-7xl flex-col overflow-hidden rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)] sm:min-h-[calc(100vh-2rem)]">
+    <main className="min-h-screen overflow-x-hidden bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4 lg:h-screen lg:overflow-hidden">
+      <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-7xl flex-col rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)] lg:h-full lg:min-h-0 lg:overflow-hidden">
         <header className="flex flex-col gap-4 border-b border-black/8 px-4 py-4 sm:px-5 sm:py-5 lg:flex-row lg:items-end lg:justify-between lg:px-6">
           <WorkflowHeading />
 
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-start">
 
-
-            <Button
-              variant="outline"
-              type="button"
-              onClick={handleReset}
-              className="w-full sm:w-auto"
-            >Reset</Button>
-
-            <Button
-              variant="outline"
-              type="button"
-              onClick={handleUndo}
-              className="w-full sm:w-auto"
-              disabled={!canUndo}>Undo</Button>
-
-            <Button
-              variant="outline"
-              type="button"
-              onClick={handleRedo}
-              className="w-full sm:w-auto"
-              disabled={!canRedo}>Redo</Button>
 
             <Button
               variant="outline"
@@ -746,10 +791,28 @@ export function WorkflowShell(): JSX.Element {
               onClick={openExportModal}
               className="col-span-2 w-full sm:col-span-1 sm:w-auto"
             >Export JSON</Button>
+
+            <div className="col-span-2 flex flex-col gap-2 sm:col-span-1">
+              <Button
+                type="button"
+                onClick={handleRunWorkflow}
+                className="w-full sm:w-auto"
+                disabled={isRunning || nodes.length === 0}
+              >
+                {isRunning ? "Running..." : "Run Workflow"}
+              </Button>
+            </div>
           </div>
         </header>
 
-        <section className="grid flex-1 gap-0 lg:grid-cols-[auto_minmax(0,1fr)]">
+        <section
+          className={cn(
+            "relative grid min-h-0 flex-1 gap-0",
+            isExecutionLogsOpen
+              ? "lg:grid-cols-[auto_minmax(0,1fr)_22rem]"
+              : "lg:grid-cols-[auto_minmax(0,1fr)]",
+          )}
+        >
           <aside
             className={cn(
               "relative overflow-visible bg-[#f6f8f9] transition-[width,max-height,padding] duration-300 ease-out lg:border-r lg:border-b-0",
@@ -838,32 +901,34 @@ export function WorkflowShell(): JSX.Element {
                     : "left-3 top-5"
               )}
             >
-              <svg
-                className={cn(
-                  "h-4 w-4 transition-transform duration-200",
-                  isCompactViewport
-                    ? isNodeSidebarOpen
-                      ? "-rotate-90"
-                      : "rotate-90"
-                    : isNodeSidebarOpen
-                      ? ""
-                      : "rotate-180"
-                )}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
+              {isCompactViewport ? (
+                isNodeSidebarOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )
+              ) : (
+                <svg
+                  className={cn(
+                    "h-4 w-4 transition-transform duration-200",
+                    isNodeSidebarOpen ? "" : "rotate-180"
+                  )}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              )}
             </button>
           </aside>
 
-          <div className="bg-[#f1f4f5] p-3 sm:p-5 lg:p-6">
+          <div className="min-h-0 bg-[#f1f4f5] p-3 sm:p-5 lg:p-6">
             <Card className="flex h-full min-h-[65vh] flex-col rounded-[18px] sm:min-h-[70vh] lg:min-h-0">
               <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                 <div>
@@ -892,12 +957,141 @@ export function WorkflowShell(): JSX.Element {
                   onConnect={handleConnect}
                   isValidConnection={validateConnection}
                   onDropNode={handleDropNode}
+                  onUndo={handleUndo}
+                  onRedo={handleRedo}
+                  onReset={handleReset}
+                  canUndo={canUndo}
+                  canRedo={canRedo}
+                  hideCanvasActions={isCompactViewport && isExecutionLogsOpen}
                   onCanvasInit={handleCanvasInit}
                   viewportResetToken={viewportResetToken}
                 />
               </div>
             </Card>
           </div>
+
+          {isCompactViewport && isExecutionLogsOpen ? (
+            <button
+              type="button"
+              aria-label="Close execution logs overlay"
+              title="Close execution logs overlay"
+              onClick={() => setIsExecutionLogsOpen(false)}
+              className="absolute inset-0 z-20 bg-slate-950/20"
+            />
+          ) : null}
+
+          <aside
+            className={cn(
+              "relative min-h-0 border-t border-black/8 bg-[#f8fafb] p-3 sm:p-5 lg:border-t-0",
+              isCompactViewport
+                ? cn(
+                    "fixed bottom-0 left-0 top-0 z-30 w-[min(88vw,24rem)] max-w-sm border-r border-black/8 shadow-[18px_0_36px_rgba(15,23,42,0.16)] transition-transform duration-300 ease-out",
+                    isExecutionLogsOpen ? "translate-x-0" : "-translate-x-full",
+                  )
+                : isExecutionLogsOpen
+                  ? "lg:border-l lg:p-6"
+                  : "hidden",
+            )}
+          >
+            <Card className="flex h-full min-h-0 flex-col rounded-[18px]">
+              <CardHeader className="border-b border-slate-200 px-5 py-4">
+                <div className="flex items-start gap-3">
+                  <div>
+                    <CardTitle>Execution logs</CardTitle>
+                    <CardDescription className="mt-1">
+                      Follow each workflow step as it runs.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-5 py-5">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-slate-500">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline">{logs.length} logs</Badge>
+                    <Badge variant="outline">{isRunning ? "Active run" : "Idle"}</Badge>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    type="button"
+                    size="sm"
+                    onClick={handleResetExecution}
+                    disabled={isRunning}
+                  >
+                    Reset Execution
+                  </Button>
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+
+                  {logs.length === 0 ? (
+
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
+                      Run the workflow to see live execution updates.
+                    </div>
+
+                  ) : (
+                    logs.map((log)=>(
+                      <div
+                        key={log.id}
+                        className={cn(
+                          "rounded-xl border px-4 py-3 text-sm",
+                          getLogCardClassName(log),
+                        )}>
+
+                        <div className="font-medium">{log.message}</div>
+                        
+                        <div className="mt-1 text-[11px] uppercase tracking-[0.08em] opacity-75">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {isExecutionLogsOpen ? (
+              <button
+                type="button"
+                aria-label="Hide execution logs"
+                title="Hide execution logs"
+                onClick={() => setIsExecutionLogsOpen(false)}
+                className={cn(
+                  "absolute z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900",
+                  isCompactViewport
+                    ? "-right-5 top-1/2 -translate-y-1/2"
+                    : "lg:-left-5 lg:top-5",
+                )}
+              >
+                {isCompactViewport ? (
+                  <PanelLeftClose className="h-4 w-4" />
+                ) : (
+                  <PanelRightClose className="h-4 w-4" />
+                )}
+              </button>
+            ) : null}
+          </aside>
+
+          {!isExecutionLogsOpen ? (
+            <button
+              type="button"
+              aria-label="Show execution logs"
+              title="Show execution logs"
+              onClick={() => setIsExecutionLogsOpen(true)}
+              className={cn(
+                "absolute z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900",
+                isCompactViewport ? "-left-2 top-1/2 -translate-y-1/2" : "lg:right-4 lg:top-5",
+              )}
+            >
+              {isCompactViewport ? (
+                <PanelRightClose className="h-4 w-4" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" />
+              )}
+            </button>
+          ) : null}
         </section>
       </div>
 

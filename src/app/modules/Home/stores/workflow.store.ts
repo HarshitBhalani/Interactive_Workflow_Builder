@@ -18,12 +18,21 @@ import {
   workflowPreviewNodes,
 } from "../configs/workflowPreview.config";
 import type {
+  WorkflowExecutionLog,
   WorkflowGraphEdge,
   WorkflowGraphNode,
   WorkflowNodeKind,
+  WorkflowNodeOutput,
   WorkflowSnapshot,
 } from "../types/workflow.type";
-import { createWorkflowSnapshot } from "../utils/workflowPersistence.util";
+import {
+  executeWorkflowNode,
+  getNextNodeForResult,
+} from "../utils/workflowExecution.util";
+import {
+  createWorkflowSnapshot,
+  normalizeWorkflowNodes,
+} from "../utils/workflowPersistence.util";
 import {
   createWorkflowNode,
   createWorkflowNodeCopy,
@@ -40,6 +49,8 @@ type WorkflowStore = {
   dragSnapshot: WorkflowSnapshot | null;
   canUndo: boolean;
   canRedo: boolean;
+  isRunning: boolean;
+  logs: WorkflowExecutionLog[];
   handleNodesChange: (changes: NodeChange[]) => void;
   handleEdgesChange: (changes: EdgeChange[]) => void;
   handleNodesDelete: (deletedNodes: WorkflowGraphNode[]) => void;
@@ -52,6 +63,8 @@ type WorkflowStore = {
   ) => void;
   loadWorkflowSnapshot: (snapshot: WorkflowSnapshot) =>void;
   resetWorkflow:() => void;
+  resetExecution: () => void;
+  runWorkflow: () => Promise<void>;
   undo: () => void;
   redo: () => void;
 };
@@ -137,6 +150,50 @@ function clearNodeSelection(nodes: WorkflowGraphNode[]): WorkflowGraphNode[] {
   }));
 }
 
+function resetNodeRuntime(nodes: WorkflowGraphNode[]): WorkflowGraphNode[] {
+  return nodes.map((node) => ({
+    ...node,
+    data: {
+      ...node.data,
+      status: "idle",
+      output: null,
+      lastError: null,
+    },
+  }));
+}
+
+function updateNodeRuntime(
+  nodes: WorkflowGraphNode[],
+  nodeId: string,
+  payload: Partial<Pick<WorkflowGraphNode["data"], "status" | "output" | "lastError">>,
+): WorkflowGraphNode[] {
+  return nodes.map((node) =>
+    node.id === nodeId
+      ? {
+          ...node,
+          data: {
+            ...node.data,
+            ...payload,
+          },
+        }
+      : node,
+  );
+}
+
+function createExecutionLog(
+  message: string,
+  status: WorkflowExecutionLog["status"],
+  nodeId: string | null = null,
+): WorkflowExecutionLog {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    nodeId,
+    message,
+    status,
+    timestamp: new Date().toISOString(),
+  };
+}
+
 function snapshotsMatch(
   firstSnapshot: WorkflowSnapshot,
   secondSnapshot: WorkflowSnapshot,
@@ -157,6 +214,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
   dragSnapshot: null,
   canUndo: false,
   canRedo: false,
+  isRunning: false,
+  logs: [],
 
   handleNodesChange: (changes): void => {
     set((state) => {
@@ -331,7 +390,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
     set((state) => {
       const previousSnapshot = buildSnapshot(state.nodes, state.edges);
       const nextSnapshot = buildSnapshot(
-        clearNodeSelection(snapshot.nodes),
+        resetNodeRuntime(clearNodeSelection(snapshot.nodes)),
         snapshot.edges,
       );
 
@@ -347,7 +406,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
     set((state)=>{
       const previousSnapshot=buildSnapshot(state.nodes, state.edges);
       const nextSnapshot=buildSnapshot(
-        clearNodeSelection(initialSnapshot.nodes),
+        resetNodeRuntime(clearNodeSelection(initialSnapshot.nodes)),
         initialSnapshot.edges,
       );
 
@@ -358,6 +417,122 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
       return buildHistoryState(previousSnapshot,nextSnapshot,state.past);
     });
+  },
+
+  resetExecution: (): void => {
+    set((state) => ({
+      nodes: resetNodeRuntime(state.nodes),
+      isRunning: false,
+      logs: [],
+    }));
+  },
+
+  runWorkflow: async (): Promise<void> => {
+    const initialState = get();
+
+    if (initialState.isRunning) {
+      return;
+    }
+
+    const startNodeIds = new Set(initialState.edges.map((edge) => edge.target));
+    const startNode =
+      initialState.nodes.find((node) => !startNodeIds.has(node.id)) ??
+      initialState.nodes[0];
+
+    if (!startNode) {
+      set((state) => ({
+        ...state,
+        logs: [createExecutionLog("No nodes available to run.", "error")],
+      }));
+      return;
+    }
+
+    set((state) => ({
+      isRunning: true,
+      logs: [createExecutionLog("Workflow execution started.", "info")],
+      nodes: resetNodeRuntime(state.nodes),
+    }));
+
+    let currentNode: WorkflowGraphNode | null = startNode;
+    let previousOutput: WorkflowNodeOutput = null;
+    const visitedNodeIds = new Set<string>();
+
+    while (currentNode && !visitedNodeIds.has(currentNode.id)) {
+      const activeNode = currentNode;
+
+      visitedNodeIds.add(activeNode.id);
+
+      set((state) => ({
+        nodes: updateNodeRuntime(state.nodes, activeNode.id, {
+          status: "running",
+          lastError: null,
+        }),
+        logs: [
+          ...state.logs,
+          createExecutionLog(
+            `Running ${activeNode.data.title}.`,
+            "running",
+            activeNode.id,
+          ),
+        ],
+      }));
+
+      try {
+        const result = await executeWorkflowNode(activeNode, previousOutput);
+
+        set((state) => ({
+          nodes: updateNodeRuntime(state.nodes, activeNode.id, {
+            status: "success",
+            output: result.output,
+            lastError: null,
+          }),
+          logs: [
+            ...state.logs,
+            createExecutionLog(
+              `${activeNode.data.title} completed successfully.`,
+              "success",
+              activeNode.id,
+            ),
+          ],
+        }));
+
+        previousOutput = result.output;
+        currentNode = getNextNodeForResult(
+          activeNode,
+          get().nodes,
+          get().edges,
+          result,
+        );
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown execution error.";
+
+        set((state) => ({
+          isRunning: false,
+          nodes: updateNodeRuntime(state.nodes, activeNode.id, {
+            status: "error",
+            lastError: errorMessage,
+          }),
+          logs: [
+            ...state.logs,
+            createExecutionLog(
+              `${activeNode.data.title} failed: ${errorMessage}`,
+              "error",
+              activeNode.id,
+            ),
+          ],
+        }));
+        return;
+      }
+    }
+
+    set((state) => ({
+      isRunning: false,
+      logs: [
+        ...state.logs,
+        createExecutionLog("Workflow execution finished.", "success"),
+      ],
+    }));
   },
 
   undo: (): void => {
@@ -375,7 +550,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
       ];
 
       return {
-        ...buildPresentState(previousSnapshot),
+        ...buildPresentState({
+          nodes: resetNodeRuntime(previousSnapshot.nodes),
+          edges: previousSnapshot.edges,
+        }),
         past: nextPast,
         future: nextFuture,
         dragSnapshot: null,
@@ -400,7 +578,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
       ]);
 
       return {
-        ...buildPresentState(nextSnapshot),
+        ...buildPresentState({
+          nodes: resetNodeRuntime(nextSnapshot.nodes),
+          edges: nextSnapshot.edges,
+        }),
         past: nextPast,
         future: nextFuture,
         dragSnapshot: null,
@@ -414,6 +595,25 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
       name: workflowStorageKey,
       storage: createJSONStorage(() => localStorage),
+      merge: (persistedState, currentState) => {
+        const typedPersistedState = persistedState as Partial<WorkflowStore> | undefined;
+
+        return {
+          ...currentState,
+          ...typedPersistedState,
+          nodes: typedPersistedState?.nodes
+            ? normalizeWorkflowNodes(typedPersistedState.nodes)
+            : currentState.nodes,
+          edges: typedPersistedState?.edges ?? currentState.edges,
+          past: [],
+          future: [],
+          dragSnapshot: null,
+          canUndo: false,
+          canRedo: false,
+          isRunning: false,
+          logs: [],
+        };
+      },
       partialize: (state) => ({
         nodes: clearNodeSelection(state.nodes),
         edges: state.edges,

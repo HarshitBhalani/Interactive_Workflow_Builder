@@ -6,24 +6,66 @@ import { cn } from "@/common/utils/cn.util";
 import type { WorkflowNodeData } from "../types/workflow.type";
 import { workflowNodeAppearanceByKind } from "../utils/workflowNodeFactory.util";
 
+const statusAppearance = 
+{
+  idle: {
+    badgeClassName: "border-slate-200 bg-slate-100 text-slate-600",
+    cardClassName: "",
+    label: "Idle",
+  },
+
+  running: {
+    badgeClassName: "border-amber-200 bg-amber-100 text-amber-700",
+    cardClassName: "ring-2 ring-amber-300/70",
+    label: "Running",
+  },
+
+  success: {
+    badgeClassName: "border-emerald-200 bg-emerald-100 text-emerald-700",
+    cardClassName: "ring-2 ring-emerald-300/70",
+    label: "Success",
+  },
+  error: {
+
+    badgeClassName: "border-rose-200 bg-rose-100 text-rose-700",
+    cardClassName: "ring-2 ring-rose-300/70",
+    label: "Error",
+  },
+  
+} as const;
+
 export function WorkflowNode({
   id,
   data,
   selected,
 }: NodeProps<WorkflowNodeData>): JSX.Element{ //JSX elemet because we are using reactflow and it expects a JSX element to be returned from the node component
   const isCondition = data.kind==="condition";
-  const nodeAppearance = workflowNodeAppearanceByKind[data.kind];
+  const nodeAppearance = workflowNodeAppearanceByKind[data.kind] ?? workflowNodeAppearanceByKind.action;
+  const currentStatusAppearance =statusAppearance[data.status] ?? statusAppearance.idle;
 
   return (
     <div
       className={cn(
-        "group w-55 max-w-[75vw] rounded-2xl border p-4 transition-all sm:w-60",
+        "group relative w-55 max-w-[75vw] rounded-2xl border p-4 pt-7 transition-all sm:w-60",
         nodeAppearance.cardClassName,
+        currentStatusAppearance.cardClassName,
+
         selected
           ? "border-slate-900 shadow-[0_0_0_2px_rgba(15,23,42,0.08),0_14px_30px_rgba(15,23,42,0.16)]"
           : "shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
       )}
     >
+      <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
+        <div
+          className={cn(
+            "rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] shadow-sm",
+            currentStatusAppearance.badgeClassName,
+          )}
+        >
+          {currentStatusAppearance.label}
+        </div>
+      </div>
+
       <Handle
         type="target"
         position={Position.Left}
@@ -93,7 +135,16 @@ export function WorkflowNode({
 
       <p className="mt-3 text-sm leading-6 text-slate-600">{data.subtitle}</p>
 
+      {data.lastError ? (
+
+        <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          {data.lastError}
+        </div>
+
+      ) : null}
+
       {selected ? (
+        
         <div className="mt-3 text-xs font-medium text-slate-500">Selected</div>
       ) : null}
 

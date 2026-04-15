@@ -56,19 +56,34 @@ function isWorkflowEdge(edge: unknown): edge is WorkflowGraphEdge {
   );
 }
 
+export function normalizeWorkflowNode(node: WorkflowGraphNode): WorkflowGraphNode {
+  return {
+    ...node,
+    selected: node.selected ?? false,
+    data: {
+      title: node.data.title,
+      subtitle: node.data.subtitle,
+      kind: node.data.kind,
+      config: isPlainObject(node.data.config) ? node.data.config : {},
+      status: "idle",
+      output: null,
+      lastError: null,
+    },
+  };
+}
+
+export function normalizeWorkflowNodes(nodes: WorkflowGraphNode[]): WorkflowGraphNode[] {
+  return nodes.map(normalizeWorkflowNode);
+}
+
 export function createWorkflowSnapshot(
   nodes: WorkflowGraphNode[],
   edges: WorkflowGraphEdge[]
 ): WorkflowSnapshot {
   return {
-    nodes: nodes.map((node) => ({
+    nodes: normalizeWorkflowNodes(nodes).map((node) => ({
       ...node,
       selected: false,
-      data: {
-        title: node.data.title,
-        subtitle: node.data.subtitle,
-        kind: node.data.kind,
-      },
     })),
     edges,
   };
@@ -91,14 +106,9 @@ export function parseWorkflowSnapshot(jsonText: string): WorkflowSnapshot {
   }
 
   return {
-    nodes: parsedValue.nodes.map((node) => ({
+    nodes: normalizeWorkflowNodes(parsedValue.nodes).map((node) => ({
       ...node,
       selected: false,
-      data: {
-        title: node.data.title,
-        subtitle: node.data.subtitle,
-        kind: node.data.kind,
-      },
     })),
     edges: parsedValue.edges,
   };

@@ -7,7 +7,10 @@ import {
   PictureInPicture,
   PictureInPicture2,
   Plus,
+  Redo,
+  RotateCcw,
   ScanSearch,
+  Undo,
 } from "lucide-react";
 import ReactFlow, {
   Background,
@@ -48,6 +51,12 @@ export type WorkflowCanvasProps = {
   onConnect: (connection: Connection) => void;
   isValidConnection: IsValidConnection;
   onDropNode: (kind: WorkflowNodeKind, position: XYPosition) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  onReset: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  hideCanvasActions?: boolean;
   onCanvasInit?: (
     instance: ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge>
   ) => void;
@@ -69,6 +78,12 @@ function WorkflowCanvas({
   onConnect,
   isValidConnection,
   onDropNode,
+  onUndo,
+  onRedo,
+  onReset,
+  canUndo,
+  canRedo,
+  hideCanvasActions = false,
   onCanvasInit,
   viewportResetToken = 0,
 }: Props): JSX.Element {
@@ -231,6 +246,39 @@ function WorkflowCanvas({
             <ScanSearch size={16} />
           </button>
         </div>
+        {!hideCanvasActions ? (
+          <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_24px_rgba(15,23,42,0.12)]">
+            <button
+              type="button"
+              aria-label="Undo"
+              title="Undo"
+              onClick={onUndo}
+              disabled={!canUndo}
+              className="flex h-10 w-10 items-center justify-center border-r border-slate-200 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-white"
+            >
+              <Undo size={16} />
+            </button>
+            <button
+              type="button"
+              aria-label="Redo"
+              title="Redo"
+              onClick={onRedo}
+              disabled={!canRedo}
+              className="flex h-10 w-10 items-center justify-center border-r border-slate-200 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-white"
+            >
+              <Redo size={16} />
+            </button>
+            <button
+              type="button"
+              aria-label="Reset workflow"
+              title="Reset workflow"
+              onClick={onReset}
+              className="flex h-10 w-10 items-center justify-center text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+            >
+              <RotateCcw size={16} />
+            </button>
+          </div>
+        ) : null}
         {!isCompactViewport ? (
           <>
             {isMiniMapVisible ? (
@@ -240,7 +288,7 @@ function WorkflowCanvas({
                   aria-label="Hide minimap"
                   title="Hide minimap"
                   onClick={() => setIsMiniMapVisible(false)}
-                  className="absolute bottom-[156px] right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition hover:border-slate-300 hover:text-slate-900"
+                  className="absolute bottom-39 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition hover:border-slate-300 hover:text-slate-900"
                 >
                   <PictureInPicture size={15} />
                 </button>

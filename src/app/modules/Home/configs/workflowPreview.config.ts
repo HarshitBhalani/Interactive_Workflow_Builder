@@ -13,6 +13,10 @@ export const workflowPreviewNodes: WorkflowGraphNode[] = [
       title: "Start",
       subtitle: "Request submitted",
       kind: "start",
+      config: {},
+      status: "idle",
+      output: null,
+      lastError: null,
     },
   },
   {
@@ -23,6 +27,12 @@ export const workflowPreviewNodes: WorkflowGraphNode[] = [
       title: "Action",
       subtitle: "Assign reviewer",
       kind: "action",
+      config: {
+        delayMs: 600,
+      },
+      status: "idle",
+      output: null,
+      lastError: null,
     },
   },
   {
@@ -33,6 +43,12 @@ export const workflowPreviewNodes: WorkflowGraphNode[] = [
       title: "Condition",
       subtitle: "Is the request complete?",
       kind: "condition",
+      config: {
+        preferredBranch: "yes",
+      },
+      status: "idle",
+      output: null,
+      lastError: null,
     },
   },
   {
@@ -43,6 +59,10 @@ export const workflowPreviewNodes: WorkflowGraphNode[] = [
       title: "End",
       subtitle: "Move to approval",
       kind: "end",
+      config: {},
+      status: "idle",
+      output: null,
+      lastError: null,
     },
   },
   {
@@ -53,6 +73,10 @@ export const workflowPreviewNodes: WorkflowGraphNode[] = [
       title: "End",
       subtitle: "Send back for update",
       kind: "end",
+      config: {},
+      status: "idle",
+      output: null,
+      lastError: null,
     },
   },
 ];

@@ -131,6 +131,30 @@ function getNextNodePosition(nodes: WorkflowGraphNode[]): XYPosition {
   };
 }
 
+function createDefaultNodeConfig(kind: WorkflowNodeKind){
+
+  switch (kind) {
+    case "start":
+      return {};
+
+    case "action":
+      return {
+        delayMs: 600,
+      };
+
+    case "condition":
+      return {
+        preferredBranch: "yes" as const,
+      };
+
+    case "end":
+      return {};
+
+    default:
+      return {};
+  }
+}
+
 export function createWorkflowNode(
   kind: WorkflowNodeKind,
   nodes: WorkflowGraphNode[],
@@ -148,6 +172,10 @@ export function createWorkflowNode(
       title: nodeContent.badge,
       subtitle: nodeContent.defaultSubtitle,
       kind,
+      config: createDefaultNodeConfig(kind),
+      status: "idle",
+      output: null,
+      lastError: null,
     },
   };
 }
@@ -166,6 +194,14 @@ export function createWorkflowNodeCopy(
     selected: true,
     data: {
       ...nodeToCopy.data,
+
+      config: {
+        ...nodeToCopy.data.config,
+      },
+      
+      status: "idle",
+      output: null,
+      lastError: null,
     },
   };
 }
