@@ -2,8 +2,6 @@
 
 A simple visual editor for creating workflows with draggable nodes and connections. The app is designed to make flow building easy to understand, with support for editing nodes, validating connections, and importing or exporting the workflow as JSON. The interface direction is inspired by simple whiteboard-style tools such as Excalidraw, with a clean layout and lightweight visual structure.
 
-![Workflow Builder Design](./docs/excalidraw-screen-design.png.png)
-
 ## Live Preview
 
 - https://interactive-workflow-builder.vercel.app/
