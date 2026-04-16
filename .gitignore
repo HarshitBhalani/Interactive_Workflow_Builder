@@ -33,6 +33,10 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# firebase config
+src/features/auth/config/firebase.ts
+feature/firebase-auth/config/firebase.ts
+
 # vercel
 .vercel
 
