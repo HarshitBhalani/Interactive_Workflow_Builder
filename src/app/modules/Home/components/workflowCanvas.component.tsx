@@ -299,43 +299,48 @@ function WorkflowCanvas({
         ) : null}
         {!isCompactViewport ? (
           <>
-            {isMiniMapVisible ? (
-              <>
-                <button
-                  type="button"
-                  aria-label="Hide minimap"
-                  title="Hide minimap"
-                  onClick={() => setIsMiniMapVisible(false)}
-                  className="absolute bottom-39 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition hover:border-slate-300 hover:text-slate-900"
-                >
-                  <PictureInPicture size={15} />
-                </button>
-                <MiniMap
-                  position="bottom-right"
-                  pannable
-                  zoomable
-                  nodeColor={getMiniMapNodeColor}
-                  maskColor="rgba(226, 232, 240, 0.58)"
-                  maskStrokeColor="rgba(59, 130, 246, 0.55)"
-                  maskStrokeWidth={2}
-                  style={{ width: 192, height: 136, backgroundColor: "#f8fafc" }}
-                  nodeStrokeColor="#ffffff"
-                  nodeBorderRadius={6}
-                  nodeStrokeWidth={2}
-                  className="workflow-minimap bottom-4! right-4! rounded-xl!"
-                />
-              </>
-            ) : (
-              <button
-                type="button"
-                aria-label="Show minimap"
-                title="Show minimap"
-                onClick={() => setIsMiniMapVisible(true)}
-                className="absolute bottom-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition hover:border-slate-300 hover:text-slate-900"
-              >
+            <button
+              type="button"
+              aria-label={isMiniMapVisible ? "Hide minimap" : "Show minimap"}
+              title={isMiniMapVisible ? "Hide minimap" : "Show minimap"}
+              onClick={() => setIsMiniMapVisible((currentState) => !currentState)}
+              className={isMiniMapVisible
+                ? "absolute bottom-[10.5rem] right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition hover:border-slate-300 hover:text-slate-900"
+                : "absolute bottom-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition hover:border-slate-300 hover:text-slate-900"
+              }
+            >
+              {isMiniMapVisible ? (
+                <PictureInPicture size={15} />
+              ) : (
                 <PictureInPicture2 size={15} />
-              </button>
-            )}
+              )}
+            </button>
+            {isMiniMapVisible ? (
+              <MiniMap
+                position="bottom-right"
+                pannable
+                zoomable
+                nodeColor={getMiniMapNodeColor}
+                maskColor="rgba(226, 232, 240, 0.4)"
+                maskStrokeColor="rgba(59, 130, 246, 0.55)"
+                maskStrokeWidth={2}
+                style={{
+                  width: 192,
+                  height: 136,
+                  marginRight: 16,
+                  marginBottom: 16,
+                  backgroundColor: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  boxShadow: "0 12px 24px rgba(15,23,42,0.12)",
+                }}
+                nodeStrokeColor="#ffffff"
+                nodeBorderRadius={6}
+                nodeStrokeWidth={2}
+                className="workflow-minimap"
+              />
+            ) : null}
           </>
         ) : null}
       </ReactFlow>

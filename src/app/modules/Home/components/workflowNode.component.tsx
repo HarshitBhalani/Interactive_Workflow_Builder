@@ -2,7 +2,14 @@
 
 import type { JSX } from "react";
 import { AlertCircle, Info, Settings2 } from "lucide-react";
-import { Handle, Position, type NodeProps } from "reactflow";
+import {
+  Handle,
+  NodeResizeControl,
+  Position,
+  useNodeId,
+  useStore,
+  type NodeProps,
+} from "reactflow";
 import { cn } from "@/common/utils/cn.util";
 import type { WorkflowNodeData } from "../types/workflow.type";
 import {
@@ -68,6 +75,10 @@ export function WorkflowNode({
   data,
   selected,
 }: NodeProps<WorkflowNodeData>): JSX.Element {
+  const currentNodeId = useNodeId();
+  const internalNode = useStore((state) =>
+    currentNodeId ? state.nodeInternals.get(currentNodeId) : null,
+  );
   const isCondition = data.kind === "condition";
   const nodeAppearance =
     workflowNodeAppearanceByKind[data.kind] ?? workflowNodeAppearanceByKind.action;
@@ -97,6 +108,14 @@ export function WorkflowNode({
         color: accentColor,
       }
     : undefined;
+  const resizedFrameStyle =
+    internalNode?.width || internalNode?.height
+      ? {
+          width: internalNode?.width ?? undefined,
+          minHeight: internalNode?.height ?? undefined,
+          height: internalNode?.height ?? undefined,
+        }
+      : undefined;
 
   return (
     <div
@@ -104,6 +123,7 @@ export function WorkflowNode({
         "group relative max-w-[75vw] pt-7 transition-all",
         nodeShapeAppearance.frameClassName,
       )}
+      style={resizedFrameStyle}
     >
       <div
         className={cn(
@@ -138,6 +158,28 @@ export function WorkflowNode({
           {currentStatusAppearance.label}
         </div>
       </div>
+
+      <NodeResizeControl
+        minWidth={180}
+        minHeight={110}
+        position="bottom-right"
+        className={cn(
+          "nodrag nopan !h-6 !w-6 !rounded-full !border !border-slate-200 !bg-white !text-slate-500 !shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition hover:!border-slate-300 hover:!text-slate-900",
+          selected ? "!opacity-100" : "!opacity-0 group-hover:!opacity-100",
+        )}
+      >
+        <svg
+          viewBox="0 0 16 16"
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        >
+          <path d="M6 13H13V6" />
+          <path d="M9 13L13 9" />
+        </svg>
+      </NodeResizeControl>
 
       <Handle
         type="target"

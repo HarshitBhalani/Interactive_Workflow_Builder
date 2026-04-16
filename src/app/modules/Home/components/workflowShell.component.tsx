@@ -1225,7 +1225,7 @@ export function WorkflowShell(): JSX.Element {
                     isExecutionLogsOpen ? "translate-x-0" : "-translate-x-full",
                   )
                 : isExecutionLogsOpen
-                  ? "w-full lg:w-[22rem] lg:p-6"
+                  ? "w-full lg:w-88 lg:p-6"
                   : "w-0 overflow-hidden p-0 lg:w-0 lg:p-0",
             )}
           >
@@ -1491,6 +1491,25 @@ export function WorkflowShell(): JSX.Element {
                         title="Choose node color"
                       />
                     ))}
+                    <label className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:border-slate-300">
+                      <span>Custom</span>
+                      <span
+                        className="h-5 w-5 rounded-md border border-slate-200"
+                        style={{ backgroundColor: nodeEditor.draftColor ?? "#0ea5e9" }}
+                      />
+                      <input
+                        type="color"
+                        value={nodeEditor.draftColor ?? "#0ea5e9"}
+                        onChange={(event) =>
+                          setNodeEditor((currentEditor) => ({
+                            ...currentEditor,
+                            draftColor: event.target.value,
+                          }))
+                        }
+                        className="sr-only"
+                        aria-label="Choose custom node color"
+                      />
+                    </label>
                   </div>
                 </div>
 
