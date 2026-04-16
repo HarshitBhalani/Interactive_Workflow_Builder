@@ -51,6 +51,10 @@ function normalizeWorkflowNodeColor(color: unknown): string | null {
   return typeof color === "string" && color.trim().length > 0 ? color : null;
 }
 
+function normalizeWorkflowGroupMeta(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
 function isWorkflowNodeShape(value: unknown): value is WorkflowNodeShape {
   return (
     value === "terminator" ||
@@ -181,7 +185,11 @@ export function normalizeWorkflowNode(node: WorkflowGraphNode): WorkflowGraphNod
       subtitle: node.data.subtitle,
       kind: node.data.kind,
       shape: normalizedShape,
+      isLocked: node.data.isLocked ?? false,
       color: normalizeWorkflowNodeColor(node.data.color),
+      groupId: normalizeWorkflowGroupMeta(node.data.groupId),
+      groupLabel: normalizeWorkflowGroupMeta(node.data.groupLabel),
+      groupColor: normalizeWorkflowNodeColor(node.data.groupColor),
       config: normalizeWorkflowNodeConfig(node.data.kind, node.data.config),
       status: "idle",
       output: null,

@@ -25,7 +25,11 @@ export type WorkflowNodeData = {
   subtitle: string;
   kind: WorkflowNodeKind;
   shape: WorkflowNodeShape;
+  isLocked?: boolean;
   color?: string | null;
+  groupId?: string | null;
+  groupLabel?: string | null;
+  groupColor?: string | null;
   config: WorkflowNodeConfig;
   status: WorkflowExecutionStatus;
   output: WorkflowNodeOutput;
@@ -42,6 +46,17 @@ export type WorkflowEditorNodeData = WorkflowNodeData & {
 };
 export type WorkflowCanvasNode = Node<WorkflowEditorNodeData>;
 export type WorkflowGraphEdge = Edge;
+export type WorkflowGroupFrame = {
+  id: string;
+  label: string;
+  color: string;
+  isLocked: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+};
 
 export type WorkflowSnapshot = {
   nodes: WorkflowGraphNode[];

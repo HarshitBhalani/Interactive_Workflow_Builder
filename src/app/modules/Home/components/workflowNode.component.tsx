@@ -1,7 +1,7 @@
 "use client";
 
 import type { JSX } from "react";
-import { AlertCircle, Info, Settings2 } from "lucide-react";
+import { AlertCircle, Info, Lock, Settings2 } from "lucide-react";
 import {
   Handle,
   NodeResizeControl,
@@ -165,6 +165,7 @@ export function WorkflowNode({
         position="bottom-right"
         className={cn(
           "nodrag nopan !h-6 !w-6 !rounded-full !border !border-slate-200 !bg-white !text-slate-500 !shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition hover:!border-slate-300 hover:!text-slate-900",
+          data.isLocked ? "!pointer-events-none !opacity-0" : "",
           selected ? "!opacity-100" : "!opacity-0 group-hover:!opacity-100",
         )}
       >
@@ -212,6 +213,15 @@ export function WorkflowNode({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
+            {data.isLocked ? (
+              <div
+                className="inline-flex items-center justify-center rounded-md border border-amber-200 bg-amber-50 p-1.5 text-amber-700"
+                title="Locked node"
+                aria-label="Locked node"
+              >
+                <Lock className="h-4 w-4" />
+              </div>
+            ) : null}
             {data.validationMessage ? (
               <div className="group/info relative">
                 <button
@@ -261,6 +271,7 @@ export function WorkflowNode({
                 selected
                   ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(16,185,129,0.18)]!"
                   : "",
+                data.isLocked ? "!pointer-events-none !opacity-40" : "",
               )}
 
             />
@@ -276,6 +287,7 @@ export function WorkflowNode({
                 selected
                   ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(244,63,94,0.18)]!"
                   : "",
+                data.isLocked ? "!pointer-events-none !opacity-40" : "",
 
 
               )
@@ -297,6 +309,7 @@ export function WorkflowNode({
               selected
                 ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(148,163,184,0.16)]!"
                 : "",
+              data.isLocked ? "!pointer-events-none !opacity-40" : "",
             )}
           />
         )}

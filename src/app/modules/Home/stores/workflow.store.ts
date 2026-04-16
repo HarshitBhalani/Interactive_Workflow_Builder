@@ -44,6 +44,12 @@ import {
 } from "../utils/workflowValidation.util";
 
 const MAX_HISTORY_LENGTH = 50;
+const PASTE_OFFSET_STEP = 40;
+
+type WorkflowClipboardSelection = {
+  nodes: WorkflowGraphNode[];
+  edges: WorkflowGraphEdge[];
+};
 
 type WorkflowStore = {
   nodes: WorkflowGraphNode[];
@@ -61,6 +67,20 @@ type WorkflowStore = {
   connectNodes: (connection: Connection) => void;
   addNode: (kind: WorkflowNodeKind, position?: XYPosition, shape?: WorkflowNodeShape) => void;
   pasteNode: (node: WorkflowGraphNode, position?: XYPosition) => void;
+  pasteSelection: (
+    selection: WorkflowClipboardSelection,
+    offsetMultiplier?: number,
+  ) => void;
+  bringSelectionToFront: () => void;
+  sendSelectionBackward: () => void;
+  groupSelection: () => void;
+  ungroupSelection: () => void;
+  toggleSelectionLock: () => void;
+  moveGroupBy: (groupId: string, delta: XYPosition) => void;
+  updateGroupMeta: (
+    groupId: string,
+    payload: { label: string; color: string | null },
+  ) => void;
   updateNodeDetails: (
     nodeId: string,
     payload: { title: string; subtitle: string; color?: string | null },
@@ -154,6 +174,77 @@ function clearNodeSelection(nodes: WorkflowGraphNode[]): WorkflowGraphNode[] {
   }));
 }
 
+function getLockedNodeIds(nodes: WorkflowGraphNode[]): Set<string> {
+  return new Set(
+    nodes.filter((node) => node.data.isLocked).map((node) => node.id),
+  );
+}
+
+function getLockedGroupIds(nodes: WorkflowGraphNode[]): Set<string> {
+  return new Set(
+    nodes
+      .filter((node) => node.data.isLocked && node.data.groupId)
+      .map((node) => node.data.groupId as string),
+  );
+}
+
+function applyGroupedPositionChanges(
+  nodes: WorkflowGraphNode[],
+  changes: NodeChange[],
+): WorkflowGraphNode[] {
+  const nextNodes = applyNodeChanges(changes, nodes);
+  const positionChangesByGroupId = new Map<string, XYPosition>();
+
+  for (const change of changes) {
+    if (
+      change.type !== "position" ||
+      !change.position
+    ) {
+      continue;
+    }
+
+    const currentNode = nodes.find((node) => node.id === change.id);
+
+    if (!currentNode?.data.groupId || currentNode.data.isLocked) {
+      continue;
+    }
+
+    if (!positionChangesByGroupId.has(currentNode.data.groupId)) {
+      positionChangesByGroupId.set(currentNode.data.groupId, {
+        x: change.position.x - currentNode.position.x,
+        y: change.position.y - currentNode.position.y,
+      });
+    }
+  }
+
+  if (positionChangesByGroupId.size === 0) {
+    return nextNodes;
+  }
+
+  const directlyChangedNodeIds = new Set(
+    changes
+      .filter((change): change is Extract<NodeChange, { id: string }> => "id" in change)
+      .map((change) => change.id),
+  );
+
+  return nextNodes.map((node) => {
+    const groupId = node.data.groupId;
+    const delta = groupId ? positionChangesByGroupId.get(groupId) : null;
+
+    if (!delta || directlyChangedNodeIds.has(node.id)) {
+      return node;
+    }
+
+    return {
+      ...node,
+      position: {
+        x: node.position.x + delta.x,
+        y: node.position.y + delta.y,
+      },
+    };
+  });
+}
+
 function resetNodeRuntime(nodes: WorkflowGraphNode[]): WorkflowGraphNode[] {
   return nodes.map((node) => ({
     ...node,
@@ -226,6 +317,45 @@ function snapshotsMatch(
   return JSON.stringify(firstSnapshot) === JSON.stringify(secondSnapshot);
 }
 
+function getUniqueEdgeId(
+  preferredId: string,
+  edges: WorkflowGraphEdge[],
+): string {
+  const existingIds = new Set(edges.map((edge) => edge.id));
+
+  if (!existingIds.has(preferredId)) {
+    return preferredId;
+  }
+
+  let suffix = 1;
+
+  while (existingIds.has(`${preferredId}-${suffix}`)) {
+    suffix += 1;
+  }
+
+  return `${preferredId}-${suffix}`;
+}
+
+function getNextGroupNumber(nodes: WorkflowGraphNode[]): number {
+  const takenNumbers = new Set(
+    nodes
+      .map((node) => {
+        const match = node.data.groupId?.match(/^group-(\d+)$/);
+
+        return match ? Number(match[1]) : null;
+      })
+      .filter((value): value is number => value !== null),
+  );
+
+  let nextNumber = 1;
+
+  while (takenNumbers.has(nextNumber)) {
+    nextNumber += 1;
+  }
+
+  return nextNumber;
+}
+
 const initialSnapshot = buildSnapshot(workflowPreviewNodes, workflowPreviewEdges);
 const workflowStorageKey = "interactive-workflow-builder-state";
 
@@ -244,10 +374,35 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
   handleNodesChange: (changes): void => {
     set((state) => {
-      const nextNodes = applyNodeChanges(
-        changes.filter((change) => change.type !== "remove"),
-        state.nodes,
-      );
+      const lockedNodeIds = getLockedNodeIds(state.nodes);
+      const lockedGroupIds = getLockedGroupIds(state.nodes);
+      const allowedChanges = changes.filter((change) => {
+          if (change.type === "remove") {
+            return false;
+          }
+
+          const lockedNodeId = "id" in change ? change.id : null;
+          const targetNode = lockedNodeId
+            ? state.nodes.find((node) => node.id === lockedNodeId)
+            : null;
+          const isLockedGroupMove =
+            change.type === "position" &&
+            Boolean(targetNode?.data.groupId) &&
+            targetNode?.data.groupId !== undefined &&
+            targetNode?.data.groupId !== null &&
+            lockedGroupIds.has(targetNode.data.groupId);
+
+          if (isLockedGroupMove) {
+            return false;
+          }
+
+          if (!lockedNodeId || !lockedNodeIds.has(lockedNodeId)) {
+            return true;
+          }
+
+          return change.type === "select";
+        });
+      const nextNodes = applyGroupedPositionChanges(state.nodes, allowedChanges);
 
       const dragStarting = changes.some(
         (change) => change.type === "position" && change.dragging === true,
@@ -311,12 +466,14 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
   handleNodesDelete: (deletedNodes): void => {
     set((state) => {
-      if (deletedNodes.length === 0) {
+      const deletableNodes = deletedNodes.filter((node) => !node.data.isLocked);
+
+      if (deletableNodes.length === 0) {
         return state;
       }
 
-      const connectedEdges = getConnectedEdges(deletedNodes, state.edges);
-      const deletedNodeIds = new Set(deletedNodes.map((node) => node.id));
+      const connectedEdges = getConnectedEdges(deletableNodes, state.edges);
+      const deletedNodeIds = new Set(deletableNodes.map((node) => node.id));
       const deletedEdgeIds = new Set(connectedEdges.map((edge) => edge.id));
       const nextNodes = state.nodes.filter((node) => !deletedNodeIds.has(node.id));
       const nextEdges = state.edges.filter((edge) => !deletedEdgeIds.has(edge.id));
@@ -368,11 +525,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
   pasteNode: (node, position): void => {
     set((state) => {
-
-
-
       const nextNode = createWorkflowNodeCopy(node, state.nodes, position);
-
       const nextNodes = [...clearNodeSelection(state.nodes), nextNode];
 
       return buildHistoryState(
@@ -382,6 +535,335 @@ export const useWorkflowStore = create<WorkflowStore>()(
         state.past,
 
       );
+    });
+  },
+
+  pasteSelection: (selection, offsetMultiplier = 1): void => {
+    set((state) => {
+      if (selection.nodes.length === 0) {
+        return state;
+      }
+
+      const nextNodesBase = clearNodeSelection(state.nodes);
+      const selectedNodeIds = new Set(selection.nodes.map((node) => node.id));
+      const nextNodes = [...nextNodesBase];
+      const nodeIdMap = new Map<string, string>();
+      const groupIdMap = new Map<string, { id: string; label: string }>();
+      const offset = offsetMultiplier * PASTE_OFFSET_STEP;
+
+      for (const node of selection.nodes) {
+        let remappedGroupMeta:
+          | {
+              groupId: string;
+              groupLabel: string;
+            }
+          | undefined;
+
+        if (node.data.groupId) {
+          const existingGroupMeta = groupIdMap.get(node.data.groupId);
+
+          if (existingGroupMeta) {
+            remappedGroupMeta = {
+              groupId: existingGroupMeta.id,
+              groupLabel: existingGroupMeta.label,
+            };
+          } else {
+            const nextGroupNumber = getNextGroupNumber(nextNodes);
+            const nextGroupId = `group-${nextGroupNumber}`;
+            const nextGroupLabel = node.data.groupLabel ?? `Group ${nextGroupNumber}`;
+
+            groupIdMap.set(node.data.groupId, {
+              id: nextGroupId,
+              label: nextGroupLabel,
+            });
+            remappedGroupMeta = {
+              groupId: nextGroupId,
+              groupLabel: nextGroupLabel,
+            };
+          }
+        }
+
+        const nextNode = createWorkflowNodeCopy(node, nextNodes, {
+          x: node.position.x + offset,
+          y: node.position.y + offset,
+        });
+
+        if (remappedGroupMeta) {
+          nextNode.data.groupId = remappedGroupMeta.groupId;
+          nextNode.data.groupLabel = remappedGroupMeta.groupLabel;
+          nextNode.data.groupColor = node.data.groupColor ?? null;
+        } else {
+          nextNode.data.groupId = null;
+          nextNode.data.groupLabel = null;
+          nextNode.data.groupColor = null;
+        }
+
+        nextNodes.push(nextNode);
+        nodeIdMap.set(node.id, nextNode.id);
+      }
+
+      const nextEdges = [...state.edges];
+
+      for (const edge of selection.edges) {
+        if (
+          !selectedNodeIds.has(edge.source) ||
+          !selectedNodeIds.has(edge.target)
+        ) {
+          continue;
+        }
+
+        const mappedSource = nodeIdMap.get(edge.source);
+        const mappedTarget = nodeIdMap.get(edge.target);
+
+        if (!mappedSource || !mappedTarget) {
+          continue;
+        }
+
+        const preferredEdgeId =
+          edge.sourceHandle
+            ? `${mappedSource}-${edge.sourceHandle}-${mappedTarget}`
+            : `${mappedSource}-${mappedTarget}`;
+
+        nextEdges.push({
+          ...edge,
+          id: getUniqueEdgeId(preferredEdgeId, nextEdges),
+          source: mappedSource,
+          target: mappedTarget,
+          selected: false,
+        });
+      }
+
+      return buildHistoryState(
+        buildSnapshot(state.nodes, state.edges),
+        buildSnapshot(nextNodes, nextEdges),
+        state.past,
+      );
+    });
+  },
+
+  bringSelectionToFront: (): void => {
+    set((state) => {
+      const selectedNodes = state.nodes.filter((node) => node.selected);
+
+      if (selectedNodes.length === 0) {
+        return state;
+      }
+
+      const maxZIndex = Math.max(
+        0,
+        ...state.nodes.map((node) => node.zIndex ?? 0),
+      );
+      let zIndexCursor = maxZIndex + 1;
+      const selectedNodeIds = new Set(selectedNodes.map((node) => node.id));
+      const nextNodes = state.nodes.map((node) =>
+        selectedNodeIds.has(node.id)
+          ? {
+              ...node,
+              zIndex: zIndexCursor++,
+            }
+          : node,
+      );
+
+      return buildHistoryState(
+        buildSnapshot(state.nodes, state.edges),
+        buildSnapshot(nextNodes, state.edges),
+        state.past,
+      );
+    });
+  },
+
+  sendSelectionBackward: (): void => {
+    set((state) => {
+      const selectedNodes = state.nodes.filter((node) => node.selected);
+
+      if (selectedNodes.length === 0) {
+        return state;
+      }
+
+      const minZIndex = Math.min(
+        0,
+        ...state.nodes.map((node) => node.zIndex ?? 0),
+      );
+      let zIndexCursor = minZIndex - selectedNodes.length;
+      const selectedNodeIds = new Set(selectedNodes.map((node) => node.id));
+      const nextNodes = state.nodes.map((node) =>
+        selectedNodeIds.has(node.id)
+          ? {
+              ...node,
+              zIndex: zIndexCursor++,
+            }
+          : node,
+      );
+
+      return buildHistoryState(
+        buildSnapshot(state.nodes, state.edges),
+        buildSnapshot(nextNodes, state.edges),
+        state.past,
+      );
+    });
+  },
+
+  groupSelection: (): void => {
+    set((state) => {
+      const selectedNodes = state.nodes.filter((node) => node.selected);
+
+      if (selectedNodes.length < 2) {
+        return state;
+      }
+
+      const nextGroupNumber = getNextGroupNumber(state.nodes);
+      const nextGroupId = `group-${nextGroupNumber}`;
+      const nextGroupLabel = `Group ${nextGroupNumber}`;
+      const nextGroupColor = "#0ea5e9";
+      const selectedNodeIds = new Set(selectedNodes.map((node) => node.id));
+      const nextNodes = state.nodes.map((node) =>
+        selectedNodeIds.has(node.id)
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                groupId: nextGroupId,
+                groupLabel: nextGroupLabel,
+                groupColor: nextGroupColor,
+              },
+            }
+          : node,
+      );
+
+      return buildHistoryState(
+        buildSnapshot(state.nodes, state.edges),
+        buildSnapshot(nextNodes, state.edges),
+        state.past,
+      );
+    });
+  },
+
+  ungroupSelection: (): void => {
+    set((state) => {
+      const selectedNodes = state.nodes.filter((node) => node.selected);
+
+      if (selectedNodes.length === 0) {
+        return state;
+      }
+
+      const selectedGroupIds = new Set(
+        selectedNodes
+          .map((node) => node.data.groupId)
+          .filter((value): value is string => Boolean(value)),
+      );
+
+      if (selectedGroupIds.size === 0) {
+        return state;
+      }
+
+      const nextNodes = state.nodes.map((node) =>
+        node.data.groupId && selectedGroupIds.has(node.data.groupId)
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                groupId: null,
+                groupLabel: null,
+                groupColor: null,
+              },
+            }
+          : node,
+      );
+
+      return buildHistoryState(
+        buildSnapshot(state.nodes, state.edges),
+        buildSnapshot(nextNodes, state.edges),
+        state.past,
+      );
+    });
+  },
+
+  toggleSelectionLock: (): void => {
+    set((state) => {
+      const selectedNodes = state.nodes.filter((node) => node.selected);
+
+      if (selectedNodes.length === 0) {
+        return state;
+      }
+
+      const selectedNodeIds = new Set(selectedNodes.map((node) => node.id));
+      const shouldLock = selectedNodes.some((node) => !node.data.isLocked);
+      const nextNodes = state.nodes.map((node) =>
+        selectedNodeIds.has(node.id)
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                isLocked: shouldLock,
+              },
+            }
+          : node,
+      );
+      const previousSnapshot = buildSnapshot(state.nodes, state.edges);
+      const nextSnapshot = buildSnapshot(nextNodes, state.edges);
+
+      if (snapshotsMatch(previousSnapshot, nextSnapshot)) {
+        return state;
+      }
+
+      return buildHistoryState(previousSnapshot, nextSnapshot, state.past);
+    });
+  },
+
+  moveGroupBy: (groupId, delta): void => {
+    set((state) => {
+      const groupedNodes = state.nodes.filter((node) => node.data.groupId === groupId);
+
+      if (
+        groupedNodes.length === 0 ||
+        groupedNodes.some((node) => node.data.isLocked) ||
+        (delta.x === 0 && delta.y === 0)
+      ) {
+        return state;
+      }
+
+      const nextNodes = state.nodes.map((node) =>
+        node.data.groupId === groupId
+          ? {
+              ...node,
+              position: {
+                x: node.position.x + delta.x,
+                y: node.position.y + delta.y,
+              },
+            }
+          : node,
+      );
+
+      return {
+        nodes: nextNodes,
+      };
+    });
+  },
+
+  updateGroupMeta: (groupId, payload): void => {
+    set((state) => {
+      const normalizedLabel = payload.label.trim();
+      const nextNodes = state.nodes.map((node) =>
+        node.data.groupId === groupId
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                groupLabel: normalizedLabel || node.data.groupLabel || "Group",
+                groupColor: payload.color,
+              },
+            }
+          : node,
+      );
+
+      const previousSnapshot = buildSnapshot(state.nodes, state.edges);
+      const nextSnapshot = buildSnapshot(nextNodes, state.edges);
+
+      if (snapshotsMatch(previousSnapshot, nextSnapshot)) {
+        return state;
+      }
+
+      return buildHistoryState(previousSnapshot, nextSnapshot, state.past);
     });
   },
 

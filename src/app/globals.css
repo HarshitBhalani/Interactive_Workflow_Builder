@@ -81,6 +81,38 @@ button {
   transform: scale(1.03);
 }
 
+.workflow-canvas--select .react-flow__pane {
+  cursor: crosshair;
+}
+
+.workflow-canvas--select .react-flow__pane.selection {
+  cursor: crosshair;
+}
+
+.workflow-canvas--select .react-flow__node {
+  cursor: default !important;
+}
+
+.workflow-canvas--select .react-flow__node.selected {
+  cursor: default !important;
+}
+
+.workflow-canvas--select .react-flow__selection {
+  background: rgba(59, 130, 246, 0.14);
+  border: 1.5px solid rgba(59, 130, 246, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(191, 219, 254, 0.7),
+    0 10px 24px rgba(59, 130, 246, 0.14);
+}
+
+.workflow-canvas--pan .react-flow__pane {
+  cursor: grab;
+}
+
+.workflow-canvas--pan .react-flow__pane.dragging {
+  cursor: grabbing;
+}
+
 .workflow-minimap {
   background: transparent !important;
 }
