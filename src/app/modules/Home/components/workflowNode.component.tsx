@@ -196,7 +196,7 @@ export function WorkflowNode({
 
       <div
         className={cn(
-          "relative z-10 flex h-full flex-col",
+          "relative z-10 flex h-full min-h-0 flex-col overflow-hidden",
           nodeShapeAppearance.contentClassName,
         )}
       >
@@ -250,7 +250,9 @@ export function WorkflowNode({
           </div>
         </div>
 
-        <p className="mt-3 text-sm leading-6 text-slate-600">{data.subtitle}</p>
+        <p className="mt-2 line-clamp-2 break-words pr-8 text-sm leading-5 text-slate-600">
+          {data.subtitle}
+        </p>
 
         {data.lastError ? (
           <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
@@ -264,16 +266,13 @@ export function WorkflowNode({
               type="source"
               position={Position.Right}
               style={{top: "34%"}}
-
               className={cn(
                 "!left-auto !right-[-7px] !-translate-y-1/2 !translate-x-0 h-3.5! w-3.5! border-2! border-white! bg-emerald-500! opacity-85! shadow-[0_0_0_0_rgba(16,185,129,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(16,185,129,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(16,185,129,0.24)]!",
-
                 selected
                   ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(16,185,129,0.18)]!"
                   : "",
                 data.isLocked ? "!pointer-events-none !opacity-40" : "",
               )}
-
             />
 
             <Handle
@@ -283,13 +282,10 @@ export function WorkflowNode({
               style={{ top: "66%" }}
               className={cn(
                 "!left-auto !right-[-7px] !-translate-y-1/2 !translate-x-0 h-3.5! w-3.5! border-2! border-white! bg-rose-500! opacity-85! shadow-[0_0_0_0_rgba(244,63,94,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(244,63,94,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(244,63,94,0.24)]!",
-
                 selected
                   ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(244,63,94,0.18)]!"
                   : "",
                 data.isLocked ? "!pointer-events-none !opacity-40" : "",
-
-
               )
             }
             />
