@@ -23,6 +23,7 @@ import type {
   WorkflowGraphNode,
   WorkflowNodeKind,
   WorkflowNodeOutput,
+  WorkflowNodeShape,
   WorkflowSnapshot,
 } from "../types/workflow.type";
 import {
@@ -58,11 +59,11 @@ type WorkflowStore = {
   handleEdgesChange: (changes: EdgeChange[]) => void;
   handleNodesDelete: (deletedNodes: WorkflowGraphNode[]) => void;
   connectNodes: (connection: Connection) => void;
-  addNode: (kind: WorkflowNodeKind, position?: XYPosition) => void;
+  addNode: (kind: WorkflowNodeKind, position?: XYPosition, shape?: WorkflowNodeShape) => void;
   pasteNode: (node: WorkflowGraphNode, position?: XYPosition) => void;
   updateNodeDetails: (
     nodeId: string,
-    payload: { title: string; subtitle: string },
+    payload: { title: string; subtitle: string; color?: string | null },
   ) => void;
   loadWorkflowSnapshot: (snapshot: WorkflowSnapshot) =>void;
   resetWorkflow:() => void;
@@ -352,9 +353,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
     });
   },
 
-  addNode: (kind, position): void => {
+  addNode: (kind, position, shape): void => {
     set((state) => {
-      const nextNode = createWorkflowNode(kind, state.nodes, position);
+      const nextNode = createWorkflowNode(kind, state.nodes, position, shape);
       const nextNodes = [...clearNodeSelection(state.nodes), nextNode];
 
       return buildHistoryState(
@@ -394,6 +395,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
                 ...node.data,
                 title: payload.title,
                 subtitle: payload.subtitle,
+                color: payload.color ?? node.data.color ?? null,
               },
             }
           : node,

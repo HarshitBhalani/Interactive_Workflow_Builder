@@ -1,6 +1,15 @@
 import type { Edge, Node } from "reactflow";
 
 export type WorkflowNodeKind = "start" | "action" | "condition" | "end";
+export type WorkflowNodeShape =
+  | "terminator"
+  | "rectangle"
+  | "square"
+  | "diamond"
+  | "parallelogram"
+  | "hexagon"
+  | "circle"
+  | "document";
 export type WorkflowExecutionStatus = "idle" | "running" | "success" | "error";
 export type WorkflowConditionBranch = "yes" | "no";
 
@@ -15,6 +24,8 @@ export type WorkflowNodeData = {
   title: string;
   subtitle: string;
   kind: WorkflowNodeKind;
+  shape: WorkflowNodeShape;
+  color?: string | null;
   config: WorkflowNodeConfig;
   status: WorkflowExecutionStatus;
   output: WorkflowNodeOutput;
@@ -54,4 +65,13 @@ export type WorkflowValidationSummary = {
   hasErrors: boolean;
   workflowErrors: string[];
   nodeErrors: Record<string, string[]>;
+};
+
+export type WorkflowNodeTemplate = {
+  key: string;
+  kind: WorkflowNodeKind;
+  shape: WorkflowNodeShape;
+  label: string;
+  defaultSubtitle: string;
+  keywords: string[];
 };

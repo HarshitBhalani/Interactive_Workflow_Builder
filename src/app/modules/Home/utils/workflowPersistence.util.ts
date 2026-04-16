@@ -3,8 +3,10 @@ import type {
   WorkflowGraphEdge,
   WorkflowGraphNode,
   WorkflowNodeKind,
+  WorkflowNodeShape,
   WorkflowSnapshot,
 } from "../types/workflow.type";
+import { getDefaultWorkflowNodeShape } from "./workflowNodeFactory.util";
 
 const workflowNodeKinds: WorkflowNodeKind[] = [
   "start",
@@ -42,6 +44,23 @@ function isWorkflowNode(node: unknown): node is WorkflowGraphNode {
     typeof node.data.title === "string" &&
     typeof node.data.subtitle === "string" &&
     isWorkflowNodeKind(node.data.kind)
+  );
+}
+
+function normalizeWorkflowNodeColor(color: unknown): string | null {
+  return typeof color === "string" && color.trim().length > 0 ? color : null;
+}
+
+function isWorkflowNodeShape(value: unknown): value is WorkflowNodeShape {
+  return (
+    value === "terminator" ||
+    value === "rectangle" ||
+    value === "square" ||
+    value === "diamond" ||
+    value === "parallelogram" ||
+    value === "hexagon" ||
+    value === "circle" ||
+    value === "document"
   );
 }
 
@@ -108,7 +127,52 @@ function normalizeWorkflowNodeConfig(
   }
 }
 
+function normalizeWorkflowNodeShape(
+  kind: WorkflowNodeKind,
+  shape: unknown,
+): WorkflowNodeShape {
+  const defaultShape = getDefaultWorkflowNodeShape(kind);
+
+  if (!isWorkflowNodeShape(shape)) {
+    return defaultShape;
+  }
+
+  switch (kind) {
+    case "start":
+      return shape === "terminator" || shape === "circle" ? shape : defaultShape;
+    case "action":
+      return (
+        shape === "rectangle" ||
+        shape === "square" ||
+        shape === "parallelogram" ||
+        shape === "hexagon" ||
+        shape === "document"
+      )
+        ? shape
+        : defaultShape;
+    case "condition":
+      return shape === "diamond" ? shape : defaultShape;
+    case "end":
+      return shape === "circle" || shape === "terminator" || shape === "document"
+        ? shape
+        : defaultShape;
+    default:
+      return defaultShape;
+  }
+}
+
+function shouldUseLegacyPreviewEndShape(node: WorkflowGraphNode): boolean {
+  return (
+    node.data.kind === "end" &&
+    (node.id === "endApproved" || node.id === "endRejected")
+  );
+}
+
 export function normalizeWorkflowNode(node: WorkflowGraphNode): WorkflowGraphNode {
+  const normalizedShape = shouldUseLegacyPreviewEndShape(node)
+    ? "terminator"
+    : normalizeWorkflowNodeShape(node.data.kind, node.data.shape);
+
   return {
     ...node,
     selected: node.selected ?? false,
@@ -116,6 +180,8 @@ export function normalizeWorkflowNode(node: WorkflowGraphNode): WorkflowGraphNod
       title: node.data.title,
       subtitle: node.data.subtitle,
       kind: node.data.kind,
+      shape: normalizedShape,
+      color: normalizeWorkflowNodeColor(node.data.color),
       config: normalizeWorkflowNodeConfig(node.data.kind, node.data.config),
       status: "idle",
       output: null,

@@ -28,6 +28,8 @@ import type {
   WorkflowGraphEdge,
   WorkflowGraphNode,
   WorkflowNodeKind,
+  WorkflowNodeShape,
+  WorkflowNodeTemplate,
   WorkflowSnapshot,
 } from "../types/workflow.type";
 import {
@@ -35,6 +37,7 @@ import {
   parseWorkflowSnapshot,
 } from "../utils/workflowPersistence.util";
 import {
+  getDefaultWorkflowNodeShape,
   workflowNodeAppearanceByKind,
   workflowNodeCatalog,
 } from "../utils/workflowNodeFactory.util";
@@ -51,6 +54,7 @@ type NodeEditorState ={
   editingNodeId:string | null;
   draftTitle:string;
   draftSubtitle:string;
+  draftColor:string | null;
 };
 
 type JsonModalState={
@@ -65,7 +69,7 @@ type CanvasState ={
 
 type MobileDragState = {
   kind: WorkflowNodeKind;
-  label: string;
+  shape: WorkflowNodeShape;
   touchId: number;
   clientX: number;
   clientY: number;
@@ -80,6 +84,20 @@ type ValidationIssueItem = {
 type ExecutionLogsToggleTone = "running" | "success" | "error";
 
 const dragDataKey="application/workflow-node-kind";
+const nodeColorOptions = [
+  "#10b981",
+  "#0ea5e9",
+  "#f59e0b",
+  "#8b5cf6",
+  "#ef4444",
+  "#64748b",
+  "#0f172a",
+] as const;
+
+type DraggedWorkflowTemplate = {
+  kind: WorkflowNodeKind;
+  shape: WorkflowNodeShape;
+};
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -94,6 +112,83 @@ function isTypingTarget(target: EventTarget | null): boolean {
     tagName === "select" ||
     target.isContentEditable
   );
+}
+
+function serializeDraggedWorkflowTemplate(
+  template: DraggedWorkflowTemplate,
+): string {
+  return JSON.stringify(template);
+}
+
+function getWorkflowTemplateFeedbackKey(
+  kind: WorkflowNodeKind,
+  shape: WorkflowNodeShape,
+): string {
+  return `${kind}-${shape}`;
+}
+
+function getPaletteNodeLabel(kind: WorkflowNodeKind): string {
+  switch (kind) {
+    case "start":
+      return "Start";
+    case "action":
+      return "Action";
+    case "condition":
+      return "Condition";
+    case "end":
+      return "End";
+    default:
+      return "Node";
+  }
+}
+
+function getPaletteNodeSubtitle(kind: WorkflowNodeKind): string {
+  switch (kind) {
+    case "start":
+      return "New entry point";
+    case "action":
+      return "Add next task";
+    case "condition":
+      return "Check decision rule";
+    case "end":
+      return "Finish this path";
+    default:
+      return "Add a short description";
+  }
+}
+
+function getDefaultNodeColorPreview(kind: WorkflowNodeKind): {
+  backgroundColor: string;
+  borderColor: string;
+  color: string;
+} {
+  switch (kind) {
+    case "start":
+      return {
+        backgroundColor: "rgba(16, 185, 129, 0.12)",
+        borderColor: "rgba(16, 185, 129, 0.28)",
+        color: "#047857",
+      };
+    case "action":
+      return {
+        backgroundColor: "rgba(14, 165, 233, 0.12)",
+        borderColor: "rgba(14, 165, 233, 0.28)",
+        color: "#0369a1",
+      };
+    case "condition":
+      return {
+        backgroundColor: "rgba(245, 158, 11, 0.12)",
+        borderColor: "rgba(245, 158, 11, 0.32)",
+        color: "#b45309",
+      };
+    case "end":
+    default:
+      return {
+        backgroundColor: "rgba(100, 116, 139, 0.12)",
+        borderColor: "rgba(100, 116, 139, 0.26)",
+        color: "#475569",
+      };
+  }
 }
 
 export function WorkflowShell(): JSX.Element {
@@ -152,6 +247,7 @@ export function WorkflowShell(): JSX.Element {
     editingNodeId: null,
     draftTitle: "",
     draftSubtitle: "",
+    draftColor: null,
 
   });
 
@@ -166,7 +262,7 @@ export function WorkflowShell(): JSX.Element {
   });
   const [viewportResetToken, setViewportResetToken] = useState(0);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
-  const [mobileAddFeedback, setMobileAddFeedback] = useState<WorkflowNodeKind | null>(null);
+  const [mobileAddFeedback, setMobileAddFeedback] = useState<string | null>(null);
   const [isNodeSidebarOpen, setIsNodeSidebarOpen] = useState(true);
   const [isExecutionLogsOpen, setIsExecutionLogsOpen] = useState(true);
   const [executionLogsAttentionRunId, setExecutionLogsAttentionRunId] = useState(0);
@@ -181,9 +277,10 @@ export function WorkflowShell(): JSX.Element {
 
   const selectedNode =nodeEditor.editingNodeId
     ? (nodes.find((node)=>node.id===nodeEditor.editingNodeId) ?? null) : null;
-
-
   const selectedCanvasNode =nodes.find((node) => node.selected) ?? null;
+  const paletteNodeCatalog = workflowNodeCatalog.filter(
+    (nodeItem) => nodeItem.shape === getDefaultWorkflowNodeShape(nodeItem.kind),
+  );
   const validationSummary: WorkflowValidationSummary = validateWorkflow(nodes, edges);
   const firstValidationMessageByNodeId = Object.fromEntries(
     Object.entries(validationSummary.nodeErrors).map(([nodeId, messages]) => [
@@ -323,6 +420,7 @@ export function WorkflowShell(): JSX.Element {
       editingNodeId: nodeId,
       draftTitle: node.data.title,
       draftSubtitle: node.data.subtitle,
+      draftColor: node.data.color ?? null,
     }
     );
   }
@@ -332,6 +430,7 @@ export function WorkflowShell(): JSX.Element {
       editingNodeId:null,
       draftTitle: "",
       draftSubtitle: "",
+      draftColor: null,
     });
   }
 
@@ -519,9 +618,9 @@ export function WorkflowShell(): JSX.Element {
   },[resetExecution]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  function handleAddNode(kind:WorkflowNodeKind): void {
+  function handleAddNode(kind: WorkflowNodeKind, shape?: WorkflowNodeShape): void {
     if(!canvasState.reactFlowInstance || !canvasContainerRef.current) {
-      addNode(kind);
+      addNode(kind, undefined, shape);
       return;
     }
 
@@ -533,30 +632,33 @@ export function WorkflowShell(): JSX.Element {
     });
 
   
-    addNode(kind, position);
+    addNode(kind, position, shape);
   }
 
-  function handleAddNodeFromButton(kind: WorkflowNodeKind): void {
+  function handleAddNodeFromButton(nodeTemplate: WorkflowNodeTemplate): void {
     
     if (isCompactViewport) {
-      setMobileAddFeedback(kind);
+      setMobileAddFeedback(getWorkflowTemplateFeedbackKey(nodeTemplate.kind, nodeTemplate.shape));
       canvasContainerRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
     }
 
-    handleAddNode(kind);
+    handleAddNode(nodeTemplate.kind, nodeTemplate.shape);
   }
 
-  function handleDropNode(kind: WorkflowNodeKind, position: XYPosition): void {
-    addNode(kind, position);
+  function handleDropNode(
+    kind: WorkflowNodeKind,
+    position: XYPosition,
+    shape?: WorkflowNodeShape,
+  ): void {
+    addNode(kind, position, shape);
   }
 
   function handleMobileNodeTouchStart(
     event: React.TouchEvent<HTMLDivElement>,
-    kind: WorkflowNodeKind,
-    label: string,
+    nodeTemplate: WorkflowNodeTemplate,
   ): void {
     if (!isCompactViewport) {
       return;
@@ -571,8 +673,8 @@ export function WorkflowShell(): JSX.Element {
     }
 
     setMobileDragState({
-      kind,
-      label,
+      kind: nodeTemplate.kind,
+      shape: nodeTemplate.shape,
       touchId: touch.identifier,
       clientX: touch.clientX,
       clientY: touch.clientY,
@@ -611,9 +713,15 @@ export function WorkflowShell(): JSX.Element {
 
   function handleNodeTypeDragStart(
     event: React.DragEvent<HTMLDivElement>,
-    kind: WorkflowNodeKind,
+    nodeTemplate: WorkflowNodeTemplate,
   ): void {
-    event.dataTransfer.setData(dragDataKey, kind);
+    event.dataTransfer.setData(
+      dragDataKey,
+      serializeDraggedWorkflowTemplate({
+        kind: nodeTemplate.kind,
+        shape: nodeTemplate.shape,
+      }),
+    );
     event.dataTransfer.effectAllowed = "move";
   }
 
@@ -626,6 +734,7 @@ export function WorkflowShell(): JSX.Element {
     updateNodeDetails(nodeEditor.editingNodeId, {
       title: nodeEditor.draftTitle.trim() || "Untitled node",
       subtitle: nodeEditor.draftSubtitle.trim() || "Add a short description",
+      color: nodeEditor.draftColor,
     });
 
     closeNodeEditor();
@@ -867,8 +976,8 @@ export function WorkflowShell(): JSX.Element {
           y: trackedTouch.clientY,
         });
 
-        addNode(activeMobileDrag.kind, position);
-        setMobileAddFeedback(activeMobileDrag.kind);
+        addNode(activeMobileDrag.kind, position, activeMobileDrag.shape);
+        setMobileAddFeedback(getWorkflowTemplateFeedbackKey(activeMobileDrag.kind, activeMobileDrag.shape));
       }
 
       setMobileDragState(null);
@@ -914,7 +1023,7 @@ export function WorkflowShell(): JSX.Element {
               className="w-full sm:w-auto"
             >Export JSON</Button>
 
-            <div className="col-span-2 flex flex-col gap-2 sm:col-span-1">
+            <div className="col-span-2 hidden flex-col gap-2 sm:col-span-1 sm:flex">
               <Button
                 type="button"
                 onClick={handleRunWorkflow}
@@ -930,14 +1039,12 @@ export function WorkflowShell(): JSX.Element {
         <section
           className={cn(
             "relative grid min-h-0 flex-1 gap-0",
-            isExecutionLogsOpen
-              ? "lg:grid-cols-[auto_minmax(0,1fr)_22rem]"
-              : "lg:grid-cols-[auto_minmax(0,1fr)]",
+            "lg:grid-cols-[auto_minmax(0,1fr)_auto]",
           )}
         >
           <aside
             className={cn(
-              "relative overflow-visible bg-[#f6f8f9] transition-[width,max-height,padding] duration-300 ease-out lg:border-r lg:border-b-0",
+              "relative h-full min-h-0 overflow-visible bg-[#f6f8f9] transition-[width,max-height,padding] duration-300 ease-out lg:border-r lg:border-b-0",
               isCompactViewport
                 ? cn(
                     "border-b border-black/8",
@@ -948,55 +1055,51 @@ export function WorkflowShell(): JSX.Element {
                 : cn(
                     "border-b border-black/8",
                     isNodeSidebarOpen
-                      ? "w-full p-4 sm:p-5 lg:w-70"
-                      : "w-0 p-0"
+                      ? "w-full overflow-x-visible p-4 sm:p-5 lg:w-70"
+                      : "w-0 overflow-visible p-0"
                   )
             )}
           >
             <div
               className={cn(
-                "transition-all duration-200",
+                "flex h-full min-h-0 flex-col transition-all duration-200",
                 isNodeSidebarOpen
                   ? "pointer-events-auto opacity-100"
                   : "pointer-events-none opacity-0"
               )}
             >
-              <Card className="rounded-2xl">
+              <Card className="flex h-full max-h-full min-h-0 flex-col rounded-2xl">
                 <CardHeader className="p-4 pb-0">
                   <CardTitle className="text-base">Node state</CardTitle>
                 </CardHeader>
-                <CardContent className="p-4">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                    {workflowNodeCatalog.map((nodeItem) => (
+                <CardContent className="node-state-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
+                  <div className="grid grid-cols-2 gap-3 pb-1 sm:grid-cols-2 lg:grid-cols-1">
+                    {paletteNodeCatalog.map((nodeItem) => (
                       <div
-                        key={nodeItem.kind}
+                        key={nodeItem.key}
                         draggable={!isCompactViewport}
                         onDragStart={(event) =>
-                          handleNodeTypeDragStart(event, nodeItem.kind)
+                          handleNodeTypeDragStart(event, nodeItem)
                         }
                         onTouchStart={(event) =>
-                          handleMobileNodeTouchStart(
-                            event,
-                            nodeItem.kind,
-                            nodeItem.badge
-                          )
+                          handleMobileNodeTouchStart(event, nodeItem)
                         }
-                        className={`workflow-node-palette-item flex cursor-grab flex-col items-center gap-3 rounded-xl border px-4 py-3 text-center transition active:cursor-grabbing sm:flex-row sm:items-start sm:justify-between sm:text-left ${workflowNodeAppearanceByKind[nodeItem.kind].sidebarClassName}`}
+                        className={`workflow-node-palette-item flex min-w-0 cursor-grab flex-col items-center gap-3 rounded-xl border px-4 py-3 text-center transition active:cursor-grabbing sm:flex-row sm:items-start sm:justify-between sm:text-left ${workflowNodeAppearanceByKind[nodeItem.kind].sidebarClassName}`}
                       >
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-slate-900">
-                            {nodeItem.badge}
+                            {getPaletteNodeLabel(nodeItem.kind)}
                           </p>
                           <p className="mt-1 text-[11px] leading-5 text-slate-500 sm:whitespace-nowrap">
-                            {nodeItem.defaultSubtitle}
+                            {getPaletteNodeSubtitle(nodeItem.kind)}
                           </p>
                         </div>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          className={`w-full sm:w-auto sm:shrink-0 ${workflowNodeAppearanceByKind[nodeItem.kind].sidebarButtonClassName} ${isCompactViewport && mobileAddFeedback===nodeItem.kind ? "animate-pulse ring-2 ring-sky-400/60" : ""}`}
-                          onClick={() => handleAddNodeFromButton(nodeItem.kind)}
+                          className={`w-full sm:w-auto sm:shrink-0 ${workflowNodeAppearanceByKind[nodeItem.kind].sidebarButtonClassName} ${isCompactViewport && mobileAddFeedback===getWorkflowTemplateFeedbackKey(nodeItem.kind, nodeItem.shape) ? "animate-pulse ring-2 ring-sky-400/60" : ""}`}
+                          onClick={() => handleAddNodeFromButton(nodeItem)}
                         >
                           Add
                         </Button>
@@ -1089,6 +1192,17 @@ export function WorkflowShell(): JSX.Element {
                   viewportResetToken={viewportResetToken}
                 />
               </div>
+
+              <div className="border-t border-slate-200 px-4 py-3 sm:hidden">
+                <Button
+                  type="button"
+                  onClick={handleRunWorkflow}
+                  className="w-full"
+                  disabled={isRunning || nodes.length === 0}
+                >
+                  {isRunning ? "Running..." : "Run Workflow"}
+                </Button>
+              </div>
             </Card>
           </div>
 
@@ -1104,17 +1218,27 @@ export function WorkflowShell(): JSX.Element {
 
           <aside
             className={cn(
-              "relative min-h-0 border-t border-black/8 bg-[#f8fafb] p-3 sm:p-5 lg:border-t-0",
+              "relative min-h-0 border-t border-black/8 bg-[#f8fafb] p-3 sm:p-5 transition-[width,padding] duration-300 ease-out lg:border-l lg:border-t-0",
               isCompactViewport
                 ? cn(
                     "fixed bottom-0 left-0 top-0 z-30 w-[min(88vw,24rem)] max-w-sm border-r border-black/8 shadow-[18px_0_36px_rgba(15,23,42,0.16)] transition-transform duration-300 ease-out",
                     isExecutionLogsOpen ? "translate-x-0" : "-translate-x-full",
                   )
                 : isExecutionLogsOpen
-                  ? "lg:border-l lg:p-6"
-                  : "hidden",
+                  ? "w-full lg:w-[22rem] lg:p-6"
+                  : "w-0 overflow-hidden p-0 lg:w-0 lg:p-0",
             )}
           >
+            <div
+              className={cn(
+                "h-full transition-all duration-200",
+                isCompactViewport
+                  ? "opacity-100"
+                  : isExecutionLogsOpen
+                    ? "pointer-events-auto opacity-100"
+                    : "pointer-events-none opacity-0",
+              )}
+            >
             <Card className="flex h-full min-h-0 flex-col rounded-[18px]">
               <CardHeader className="border-b border-slate-200 px-5 py-4">
                 <div className="flex items-start gap-3">
@@ -1199,7 +1323,7 @@ export function WorkflowShell(): JSX.Element {
                       <div
                         key={log.id}
                         className={cn(
-                          "rounded-xl border px-4 py-3 text-sm",
+                          "animate-[logFadeIn_220ms_ease-out] rounded-xl border px-4 py-3 text-sm",
                           getLogCardClassName(log),
                         )}>
 
@@ -1214,30 +1338,36 @@ export function WorkflowShell(): JSX.Element {
                 </div>
               </CardContent>
             </Card>
+            </div>
 
-            {isExecutionLogsOpen ? (
-              <button
-                type="button"
-                aria-label="Hide execution logs"
-                title="Hide execution logs"
-                onClick={() => setIsExecutionLogsOpen(false)}
-                className={cn(
-                  "absolute z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900",
-                  isCompactViewport
-                    ? "-right-5 top-1/2 -translate-y-1/2"
-                    : "lg:-left-5 lg:top-5",
-                )}
-              >
-                {isCompactViewport ? (
+            {isCompactViewport ? (
+              isExecutionLogsOpen ? (
+                <button
+                  type="button"
+                  aria-label="Hide execution logs"
+                  title="Hide execution logs"
+                  onClick={() => setIsExecutionLogsOpen(false)}
+                  className="absolute -right-5 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900"
+                >
                   <PanelLeftClose className="h-4 w-4" />
-                ) : (
+                </button>
+              ) : null
+            ) : (
+              isExecutionLogsOpen ? (
+                <button
+                  type="button"
+                  aria-label="Hide execution logs"
+                  title="Hide execution logs"
+                  onClick={() => setIsExecutionLogsOpen(false)}
+                  className="absolute z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900 lg:-left-5 lg:top-5"
+                >
                   <PanelRightClose className="h-4 w-4" />
-                )}
-              </button>
-            ) : null}
+                </button>
+              ) : null
+            )}
           </aside>
 
-          {!isExecutionLogsOpen ? (
+          {(isCompactViewport || !isExecutionLogsOpen) ? (
             <button
               type="button"
               aria-label="Show execution logs"
@@ -1246,7 +1376,9 @@ export function WorkflowShell(): JSX.Element {
               className={cn(
                 "absolute z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900",
                 getExecutionLogsToggleClassName(),
-                isCompactViewport ? "-left-2 top-1/2 -translate-y-1/2" : "lg:right-4 lg:top-5",
+                isCompactViewport
+                  ? "-left-2 top-1/2 -translate-y-1/2"
+                  : "right-4 top-5",
               )}
             >
               {isCompactViewport ? (
@@ -1261,72 +1393,136 @@ export function WorkflowShell(): JSX.Element {
 
       {nodeEditor.editingNodeId ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-3 sm:px-4">
-          <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)] sm:max-h-[calc(100vh-2rem)]">
+          <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)] sm:max-h-[calc(100vh-2rem)]">
             <div className="border-b border-slate-200 px-5 py-4">
               <h2 className="text-lg font-semibold text-slate-950">
-                Edit node
+                Node settings
               </h2>
               <p className="mt-1 text-sm text-slate-500">
                 {selectedNode
-                  ? `Update the content for the ${selectedNode.data.kind} node.`
-                  : "Update the label shown on the workflow."}
+                  ? `Manage details and logs for the ${selectedNode.data.kind} node.`
+                  : "Manage the selected workflow node."}
               </p>
             </div>
 
-            <div className="space-y-4 px-5 py-5">
-              <div className="space-y-2">
-                <label
-                  htmlFor="edit-node-title"
-                  className="text-sm font-medium text-slate-700"
-                >
-                  Title
-                </label>
-                <input
-                  id="edit-node-title"
-                  type="text"
-                  value={nodeEditor.draftTitle}
+            <div className="px-5 py-5">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label
+                    htmlFor="edit-node-title"
+                    className="text-sm font-medium text-slate-700"
+                  >
+                    Title
+                  </label>
+                  <input
+                    id="edit-node-title"
+                    type="text"
+                    value={nodeEditor.draftTitle}
+                    onChange={(event) =>
+                      setNodeEditor((currentEditor) => ({
+                        ...currentEditor,
+                        draftTitle: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                  />
+                </div>
 
-                  onChange={(event) =>
-                    setNodeEditor((currentEditor) => ({
-                      ...currentEditor,
-                      draftTitle: event.target.value,
-                    }))
+                <div className="space-y-2">
+                  <label
+                    htmlFor="edit-node-subtitle"
+                    className="text-sm font-medium text-slate-700"
+                  >
+                    Subtitle
+                  </label>
+                  <textarea
+                    id="edit-node-subtitle"
+                    value={nodeEditor.draftSubtitle}
+                    onChange={(event) =>
+                      setNodeEditor((currentEditor) => ({
+                        ...currentEditor,
+                        draftSubtitle: event.target.value,
+                      }))
+                    }
+                    rows={4}
+                    className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                  />
+                </div>
 
-                  }
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-                />
-              </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-slate-700">Node color</div>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setNodeEditor((currentEditor) => ({
+                          ...currentEditor,
+                          draftColor: null,
+                        }))
+                      }
+                      className={cn(
+                        "h-9 rounded-full border px-3 text-xs font-medium transition",
+                        nodeEditor.draftColor === null
+                          ? "shadow-[0_0_0_3px_rgba(15,23,42,0.08)]"
+                          : "hover:opacity-90",
+                      )}
+                      style={getDefaultNodeColorPreview(selectedNode?.data.kind ?? "action")}
+                    >
+                      Default
+                    </button>
+                    {nodeColorOptions.map((colorOption) => (
+                      <button
+                        key={colorOption}
+                        type="button"
+                        onClick={() =>
+                          setNodeEditor((currentEditor) => ({
+                            ...currentEditor,
+                            draftColor: colorOption,
+                          }))
+                        }
+                        className={cn(
+                          "h-9 w-9 rounded-full border-2 transition",
+                          nodeEditor.draftColor === colorOption
+                            ? "scale-110 border-slate-900 shadow-[0_0_0_3px_rgba(15,23,42,0.08)]"
+                            : "border-white hover:scale-105",
+                        )}
+                        style={{ backgroundColor: colorOption }}
+                        aria-label={`Select ${colorOption} node color`}
+                        title="Choose node color"
+                      />
+                    ))}
+                  </div>
+                </div>
 
-              <div className="space-y-2">
-                <label
-                  htmlFor="edit-node-subtitle"
-                  className="text-sm font-medium text-slate-700"
-                >
-                  Subtitle
-                </label>
-                <textarea
-                  id="edit-node-subtitle"
-                  value={nodeEditor.draftSubtitle}
-
-                  onChange={(event) =>
-                    setNodeEditor((currentEditor) => ({
-                      ...currentEditor,
-                      draftSubtitle: event.target.value,
-                    }))
-
-                  }
-                  rows={4}
-                  className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-                />
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-medium text-slate-900">Node actions</div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Save your edits or remove this node from the workflow.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Button type="button" onClick={saveNodeDetails}>
+                      Save changes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      className="border-rose-200 text-rose-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-800"
+                      onClick={() => {
+                        if (selectedNode) {
+                          deleteNode(selectedNode.id);
+                        }
+                      }}
+                    >
+                      Delete node
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
               <Button variant="outline" type="button" onClick={closeNodeEditor}>
                 Cancel
-              </Button>
-              <Button type="button" onClick={saveNodeDetails}>
-                Save
               </Button>
             </div>
           </div>
@@ -1398,7 +1594,7 @@ export function WorkflowShell(): JSX.Element {
               top: mobileDragState.clientY,
             }}
           >
-            {mobileDragState.label}
+            {getPaletteNodeLabel(mobileDragState.kind)}
           </div>
         </div>
       ) : null}

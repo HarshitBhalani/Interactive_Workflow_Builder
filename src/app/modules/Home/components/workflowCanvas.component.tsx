@@ -29,6 +29,7 @@ import type {
   WorkflowCanvasNode,
   WorkflowGraphEdge,
   WorkflowNodeKind,
+  WorkflowNodeShape,
 } from "../types/workflow.type";
 import { workflowNodeAppearanceByKind } from "../utils/workflowNodeFactory.util";
 import { WorkflowEdge } from "./workflowEdge.component";
@@ -50,7 +51,11 @@ export type WorkflowCanvasProps = {
   onNodesDelete:(deletedNodes: WorkflowCanvasNode[])=>void;
   onConnect: (connection: Connection) => void;
   isValidConnection: IsValidConnection;
-  onDropNode: (kind: WorkflowNodeKind, position: XYPosition) => void;
+  onDropNode: (
+    kind: WorkflowNodeKind,
+    position: XYPosition,
+    shape?: WorkflowNodeShape,
+  ) => void;
   onUndo: () => void;
   onRedo: () => void;
   onReset: () => void;
@@ -149,11 +154,11 @@ function WorkflowCanvas({
   function handleDrop(event: React.DragEvent<HTMLDivElement>): void {
     event.preventDefault();
 
-    const draggedNodeKind = event.dataTransfer.getData(
+    const draggedNodeTemplate = event.dataTransfer.getData(
       "application/workflow-node-kind"
-    ) as WorkflowNodeKind;
+    );
 
-    if (!draggedNodeKind || !reactFlowInstance) {
+    if (!draggedNodeTemplate || !reactFlowInstance) {
       return;
     }
 
@@ -162,7 +167,20 @@ function WorkflowCanvas({
       y: event.clientY,
     });
 
-    onDropNode(draggedNodeKind, position);
+    try {
+      const parsedTemplate = JSON.parse(draggedNodeTemplate) as {
+        kind?: WorkflowNodeKind;
+        shape?: WorkflowNodeShape;
+      };
+
+      if (!parsedTemplate.kind) {
+        return;
+      }
+
+      onDropNode(parsedTemplate.kind, position, parsedTemplate.shape);
+    } catch {
+      onDropNode(draggedNodeTemplate as WorkflowNodeKind, position);
+    }
   }
 
   function handleZoomIn(): void {
