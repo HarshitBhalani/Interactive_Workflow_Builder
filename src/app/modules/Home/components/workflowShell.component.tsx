@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow"; //bcaz Zustand me object selector use karte time unnecessary re-render avoid karne ke liye
 import type { JSX } from "react";
-import { ChevronDown, ChevronUp, PanelLeftClose, PanelRightClose } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  PanelLeftClose,
+  PanelRightClose,
+} from "lucide-react";
 import type {
   Connection,
   IsValidConnection,
@@ -21,11 +26,13 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/common/utils/cn.util";
 import { useWorkflowStore } from "../stores/workflow.store";
+import { LogoutButton } from "@/features/auth/components/logout-button.component";
 import type {
   WorkflowExecutionLog,
   WorkflowValidationSummary,
   WorkflowCanvasNode,
   WorkflowGraphEdge,
+  WorkflowGroupFrame,
   WorkflowGraphNode,
   WorkflowNodeKind,
   WorkflowNodeShape,
@@ -82,6 +89,10 @@ type ValidationIssueItem = {
 };
 
 type ExecutionLogsToggleTone = "running" | "success" | "error";
+type WorkflowClipboardSelection = {
+  nodes: WorkflowGraphNode[];
+  edges: WorkflowGraphEdge[];
+};
 
 const dragDataKey="application/workflow-node-kind";
 const nodeColorOptions = [
@@ -191,6 +202,33 @@ function getDefaultNodeColorPreview(kind: WorkflowNodeKind): {
   }
 }
 
+function getCanvasNodeBounds(
+  node: WorkflowGraphNode,
+): { x: number; y: number; width: number; height: number } {
+  const fallbackDimensionsByShape: Record<
+    WorkflowNodeShape,
+    { width: number; height: number }
+  > = {
+    terminator: { width: 240, height: 132 },
+    rectangle: { width: 240, height: 132 },
+    square: { width: 192, height: 192 },
+    diamond: { width: 240, height: 176 },
+    parallelogram: { width: 240, height: 132 },
+    hexagon: { width: 240, height: 136 },
+    circle: { width: 192, height: 192 },
+    document: { width: 240, height: 140 },
+  };
+
+  const fallbackDimensions = fallbackDimensionsByShape[node.data.shape];
+
+  return {
+    x: node.position.x,
+    y: node.position.y,
+    width: node.width ?? fallbackDimensions.width,
+    height: node.height ?? fallbackDimensions.height,
+  };
+}
+
 export function WorkflowShell(): JSX.Element {
 
 
@@ -204,6 +242,14 @@ export function WorkflowShell(): JSX.Element {
       handleNodesDelete: state.handleNodesDelete,
       addNode: state.addNode,
       pasteNode: state.pasteNode,
+      pasteSelection: state.pasteSelection,
+      bringSelectionToFront: state.bringSelectionToFront,
+      sendSelectionBackward: state.sendSelectionBackward,
+      groupSelection: state.groupSelection,
+      ungroupSelection: state.ungroupSelection,
+      toggleSelectionLock: state.toggleSelectionLock,
+      moveGroupBy: state.moveGroupBy,
+      updateGroupMeta: state.updateGroupMeta,
       connectNodes: state.connectNodes,
       updateNodeDetails: state.updateNodeDetails,
       loadWorkflowSnapshot: state.loadWorkflowSnapshot,
@@ -229,6 +275,14 @@ export function WorkflowShell(): JSX.Element {
     handleNodesDelete,
     addNode,
     pasteNode,
+    pasteSelection,
+    bringSelectionToFront,
+    sendSelectionBackward,
+    groupSelection,
+    ungroupSelection,
+    toggleSelectionLock,
+    moveGroupBy,
+    updateGroupMeta,
     connectNodes,
     updateNodeDetails,
     loadWorkflowSnapshot,
@@ -273,11 +327,70 @@ export function WorkflowShell(): JSX.Element {
 
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const copiedNodeRef = useRef<WorkflowGraphNode | null>(null);
+  const copiedSelectionRef = useRef<WorkflowClipboardSelection | null>(null);
   const pasteCountRef = useRef(0);
 
   const selectedNode =nodeEditor.editingNodeId
     ? (nodes.find((node)=>node.id===nodeEditor.editingNodeId) ?? null) : null;
-  const selectedCanvasNode =nodes.find((node) => node.selected) ?? null;
+  const selectedCanvasNodes = nodes.filter((node) => node.selected);
+  const selectedCanvasNodeIds = new Set(selectedCanvasNodes.map((node) => node.id));
+  const selectedCanvasEdges = edges.filter(
+    (edge) =>
+      edge.selected ||
+      (selectedCanvasNodeIds.has(edge.source) && selectedCanvasNodeIds.has(edge.target)),
+  );
+  const selectedGroupIds = new Set(
+    selectedCanvasNodes
+      .map((node) => node.data.groupId)
+      .filter((value): value is string => Boolean(value)),
+  );
+  const lockTargets = selectedCanvasNodes;
+  const hasSelectedLockTargets = lockTargets.length > 0;
+  const areAllSelectedLockTargetsLocked =
+    hasSelectedLockTargets && lockTargets.every((node) => node.data.isLocked);
+  const canGroupSelection = selectedCanvasNodes.length > 1;
+  const canUngroupSelection = selectedGroupIds.size > 0;
+  const workflowGroupFrames: WorkflowGroupFrame[] = Array.from(
+    nodes.reduce((groupMap, node) => {
+      if (!node.data.groupId) {
+        return groupMap;
+      }
+
+      const existingNodes = groupMap.get(node.data.groupId) ?? [];
+      existingNodes.push(node);
+      groupMap.set(node.data.groupId, existingNodes);
+
+      return groupMap;
+    }, new Map<string, WorkflowGraphNode[]>()),
+  )
+    .map(([groupId, groupedNodes]) => {
+      const groupBounds = groupedNodes.map(getCanvasNodeBounds);
+      const minX = Math.min(...groupBounds.map((bounds) => bounds.x));
+      const minY = Math.min(...groupBounds.map((bounds) => bounds.y));
+      const maxX = Math.max(
+        ...groupBounds.map((bounds) => bounds.x + bounds.width),
+      );
+      const maxY = Math.max(
+        ...groupBounds.map((bounds) => bounds.y + bounds.height),
+      );
+      const maxZIndex = Math.max(...groupedNodes.map((node) => node.zIndex ?? 0));
+      const horizontalPadding = 28;
+      const topPadding = 72;
+      const bottomPadding = 26;
+
+      return {
+        id: groupId,
+        label: groupedNodes[0]?.data.groupLabel ?? "Group",
+        color: groupedNodes[0]?.data.groupColor ?? "#0ea5e9",
+        isLocked: groupedNodes.every((node) => node.data.isLocked),
+        x: minX - horizontalPadding,
+        y: minY - topPadding,
+        width: maxX - minX + horizontalPadding * 2,
+        height: maxY - minY + topPadding + bottomPadding,
+        zIndex: maxZIndex - 1,
+      };
+    })
+    .sort((firstGroup, secondGroup) => firstGroup.zIndex - secondGroup.zIndex);
   const paletteNodeCatalog = workflowNodeCatalog.filter(
     (nodeItem) => nodeItem.shape === getDefaultWorkflowNodeShape(nodeItem.kind),
   );
@@ -305,6 +418,9 @@ export function WorkflowShell(): JSX.Element {
 
   const canvasNodes: WorkflowCanvasNode[]=nodes.map((node) => ({
     ...node,
+    draggable: !node.data.isLocked,
+    connectable: !node.data.isLocked,
+    deletable: !node.data.isLocked,
     data: {
       ...node.data,
       validationMessage: showValidationFeedback
@@ -367,6 +483,17 @@ export function WorkflowShell(): JSX.Element {
       document.documentElement.style.overflow = previousHtmlOverflow;
     };
   }, [isCompactViewport, isExecutionLogsOpen]);
+
+  useEffect(() => {
+    if (!isCompactViewport) {
+      return;
+    }
+
+    if (nodeEditor.editingNodeId !== null || jsonModal.mode !== null) {
+      setIsExecutionLogsOpen(false);
+      setIsNodeSidebarOpen(false);
+    }
+  }, [isCompactViewport, jsonModal.mode, nodeEditor.editingNodeId]);
 
   useEffect(() => {
     if (!isCompactViewport || !mobileAddFeedback) {
@@ -681,20 +808,38 @@ export function WorkflowShell(): JSX.Element {
     });
   }
 
-  const handleCopyNode = useCallback((): void => {
-    if (!selectedCanvasNode) {
+  const handleCopySelection = useCallback((): void => {
+    if (selectedCanvasNodes.length === 0) {
+      copiedSelectionRef.current = null;
+      copiedNodeRef.current = null;
       return;
     }
 
-    copiedNodeRef.current = {
-      ...selectedCanvasNode,
-      position: { ...selectedCanvasNode.position },
-      data: { ...selectedCanvasNode.data },
+    copiedSelectionRef.current = {
+      nodes: selectedCanvasNodes.map((node) => ({
+        ...node,
+        position: { ...node.position },
+        data: {
+          ...node.data,
+          config: { ...node.data.config },
+        },
+      })),
+      edges: selectedCanvasEdges.map((edge) => ({
+        ...edge,
+      })),
     };
+    copiedNodeRef.current =
+      selectedCanvasNodes.length === 1 ? copiedSelectionRef.current.nodes[0] : null;
     pasteCountRef.current = 0;
-  }, [selectedCanvasNode]);
+  }, [selectedCanvasEdges, selectedCanvasNodes]);
 
   const handlePasteNode = useCallback((): void => {
+    if (copiedSelectionRef.current) {
+      pasteCountRef.current += 1;
+      pasteSelection(copiedSelectionRef.current, pasteCountRef.current);
+      return;
+    }
+
     const copiedNode = copiedNodeRef.current;
 
     if (!copiedNode) {
@@ -709,7 +854,7 @@ export function WorkflowShell(): JSX.Element {
     };
 
     pasteNode(copiedNode, position);
-  }, [pasteNode]);
+  }, [pasteNode, pasteSelection]);
 
   function handleNodeTypeDragStart(
     event: React.DragEvent<HTMLDivElement>,
@@ -840,16 +985,16 @@ export function WorkflowShell(): JSX.Element {
 
 
           case "c":
-            if(selectedCanvasNode) {
+            if(selectedCanvasNodes.length > 0) {
 
               event.preventDefault();
-              handleCopyNode();
+              handleCopySelection();
             }
 
             return;
 
           case "v":
-            if(copiedNodeRef.current) {
+            if(copiedNodeRef.current || copiedSelectionRef.current) {
               event.preventDefault();
 
               handlePasteNode();
@@ -907,12 +1052,12 @@ export function WorkflowShell(): JSX.Element {
     jsonModal.mode,
     nodes,
     edges,
-    selectedCanvasNode,
+    selectedCanvasNodes,
     saveNodeDetails,
     importWorkflow,
     openExportModal,
     handleAddNode,
-    handleCopyNode,
+    handleCopySelection,
     handlePasteNode,
     handleUndo,
     handleRedo,
@@ -1002,36 +1147,42 @@ export function WorkflowShell(): JSX.Element {
     <main className="min-h-screen overflow-x-hidden bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4 lg:h-screen lg:overflow-hidden">
       <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-7xl flex-col rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)] lg:h-full lg:min-h-0 lg:overflow-hidden">
         <header className="flex flex-col gap-4 border-b border-black/8 px-4 py-4 sm:px-5 sm:py-5 lg:flex-row lg:items-end lg:justify-between lg:px-6">
-          <WorkflowHeading />
+          <div className="flex flex-col gap-4 flex-1">
+            <WorkflowHeading />
+          </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-start">
-
-
-            <Button
-              variant="outline"
-              type="button"
-              onClick={openImportModal}
-              className="w-full sm:w-auto"
-            >
-              Import JSON
-            </Button>
-
-            <Button
-              variant="outline"
-              type="button"
-              onClick={openExportModal}
-              className="w-full sm:w-auto"
-            >Export JSON</Button>
-
-            <div className="col-span-2 hidden flex-col gap-2 sm:col-span-1 sm:flex">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end w-full lg:w-auto">
+            <LogoutButton />
+            
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-start">
               <Button
+                variant="outline"
                 type="button"
-                onClick={handleRunWorkflow}
-                className="w-full"
-                disabled={isRunning || nodes.length === 0}
+                onClick={openImportModal}
+                className="w-full sm:w-auto"
               >
-                {isRunning ? "Running..." : "Run Workflow"}
+                Import JSON
               </Button>
+
+              <Button
+                variant="outline"
+                type="button"
+                onClick={openExportModal}
+                className="w-full sm:w-auto"
+              >
+                Export JSON
+              </Button>
+
+              <div className="col-span-2 hidden flex-col gap-2 sm:col-span-1 sm:flex">
+                <Button
+                  type="button"
+                  onClick={handleRunWorkflow}
+                  className="w-full"
+                  disabled={isRunning || nodes.length === 0}
+                >
+                  {isRunning ? "Running..." : "Run Workflow"}
+                </Button>
+              </div>
             </div>
           </div>
         </header>
@@ -1176,6 +1327,7 @@ export function WorkflowShell(): JSX.Element {
                   key={viewportResetToken}
                   nodes={canvasNodes}
                   edges={edges}
+                  groups={workflowGroupFrames}
                   onNodesChange={handleCanvasNodesChange}
                   onEdgesChange={handleCanvasEdgesChange}
                   onNodesDelete={handleCanvasNodesDelete}
@@ -1187,6 +1339,19 @@ export function WorkflowShell(): JSX.Element {
                   onReset={handleReset}
                   canUndo={canUndo}
                   canRedo={canRedo}
+                  selectedNodeCount={selectedCanvasNodes.length}
+                  canGroupSelection={canGroupSelection}
+                  canUngroupSelection={canUngroupSelection}
+                  canToggleLockSelection={hasSelectedLockTargets}
+                  areAllSelectedLockTargetsLocked={areAllSelectedLockTargetsLocked}
+                  onBringSelectionToFront={bringSelectionToFront}
+                  onSendSelectionBackward={sendSelectionBackward}
+                  onGroupSelection={groupSelection}
+                  onUngroupSelection={ungroupSelection}
+                  onToggleLockSelection={toggleSelectionLock}
+                  onMoveGroupBy={moveGroupBy}
+                  onUpdateGroupMeta={updateGroupMeta}
+                  keepToolbarSingleRow={!isNodeSidebarOpen && !isExecutionLogsOpen}
                   hideCanvasActions={isCompactViewport && isExecutionLogsOpen}
                   onCanvasInit={handleCanvasInit}
                   viewportResetToken={viewportResetToken}
@@ -1392,8 +1557,8 @@ export function WorkflowShell(): JSX.Element {
       </div>
 
       {nodeEditor.editingNodeId ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-3 sm:px-4">
-          <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)] sm:max-h-[calc(100vh-2rem)]">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 px-0 sm:items-center sm:px-4">
+          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)] sm:max-h-[calc(100vh-2rem)] sm:max-w-2xl sm:rounded-2xl">
             <div className="border-b border-slate-200 px-5 py-4">
               <h2 className="text-lg font-semibold text-slate-950">
                 Node settings
@@ -1549,8 +1714,8 @@ export function WorkflowShell(): JSX.Element {
       ) : null}
 
       {jsonModal.mode ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-3 sm:px-4">
-          <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)] sm:max-h-[calc(100vh-2rem)]">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 px-0 sm:items-center sm:px-4">
+          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)] sm:max-h-[calc(100vh-2rem)] sm:max-w-2xl sm:rounded-2xl">
             <div className="border-b border-slate-200 px-5 py-4">
               <h2 className="text-lg font-semibold text-slate-950">
                 {jsonModal.mode === "export"
