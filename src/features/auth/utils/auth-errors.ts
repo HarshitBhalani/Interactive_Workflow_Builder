@@ -1,15 +1,16 @@
 const firebaseAuthErrorMessages: Record<string, string> = {
-  "auth/email-already-in-use": "Ye email already registered hai. Login karke dekho.",
-  "auth/invalid-email": "Please ek valid email address enter karo.",
-  "auth/weak-password": "Password kam se kam 6 characters ka hona chahiye.",
-  "auth/user-not-found": "Is email se koi account nahi mila.",
-  "auth/wrong-password": "Password galat hai. Dobara try karo.",
-  "auth/invalid-credential": "Email ya password sahi nahi hai.",
+  "auth/email-already-in-use":
+    "This email is already registered. Please log in instead.",
+  "auth/invalid-email": "Please enter a valid email address.",
+  "auth/weak-password": "Password must be at least 6 characters.",
+  "auth/user-not-found": "No account was found with this email address.",
+  "auth/wrong-password": "The password is incorrect. Please try again.",
+  "auth/invalid-credential": "The email or password you entered is incorrect.",
   "auth/too-many-requests":
-    "Bahut zyada attempts ho gaye. Thodi der baad try karo.",
+    "Too many attempts were made. Please try again later.",
   "auth/network-request-failed":
-    "Network issue aaya hai. Internet connection check karo.",
-  "auth/missing-password": "Password required hai.",
+    "A network error occurred. Please check your internet connection.",
+  "auth/missing-password": "Password is required.",
 };
 
 export function getFirebaseAuthErrorMessage(error: unknown): {
@@ -26,11 +27,11 @@ export function getFirebaseAuthErrorMessage(error: unknown): {
       code: error.code,
       message:
         firebaseAuthErrorMessages[error.code] ??
-        "Authentication complete nahi ho paya. Please dobara try karo.",
+        "Authentication could not be completed. Please try again.",
     };
   }
 
   return {
-    message: "Unexpected error aaya hai. Please dobara try karo.",
+    message: "An unexpected error occurred. Please try again.",
   };
 }

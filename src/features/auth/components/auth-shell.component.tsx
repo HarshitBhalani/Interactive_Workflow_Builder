@@ -7,9 +7,9 @@ type AuthShellProps = {
   badge: string;
   title: string;
   description: string;
-  footerText: string;
-  footerLinkHref: string;
-  footerLinkLabel: string;
+  footerText?: string;
+  footerLinkHref?: string;
+  footerLinkLabel?: string;
   compact?: boolean;
   children: ReactNode;
 };
@@ -104,15 +104,22 @@ export function AuthShell({
 
             {children}
 
-            <p className={cn("text-center text-sm text-slate-600", compact ? "mt-5" : "mt-8")}>
-              {footerText}{" "}
-              <Link
-                href={footerLinkHref}
-                className="font-semibold text-sky-700 transition hover:text-sky-800"
+            {footerText && footerLinkHref && footerLinkLabel ? (
+              <p
+                className={cn(
+                  "text-center text-sm text-slate-600",
+                  compact ? "mt-5" : "mt-8"
+                )}
               >
-                {footerLinkLabel}
-              </Link>
-            </p>
+                {footerText}{" "}
+                <Link
+                  href={footerLinkHref}
+                  className="font-semibold text-sky-700 transition hover:text-sky-800"
+                >
+                  {footerLinkLabel}
+                </Link>
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       </div>

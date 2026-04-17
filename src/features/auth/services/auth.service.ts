@@ -36,7 +36,7 @@ export async function signUpUser(
     return {
       success: true,
       user: userCredential.user,
-      message: "Account successfully create ho gaya.",
+      message: "Your account has been created successfully.",
     };
   } catch (error) {
     const parsedError = getFirebaseAuthErrorMessage(error);
@@ -90,7 +90,7 @@ export async function logoutUser(): Promise<{
   } catch {
     return {
       success: false,
-      message: "Logout complete nahi ho paya. Please dobara try karo.",
+      message: "Logout could not be completed. Please try again.",
     };
   }
 }

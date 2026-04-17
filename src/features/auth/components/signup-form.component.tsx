@@ -63,9 +63,6 @@ export function SignUpPage() {
       badge="Sign up"
       title="Create your account"
       description="Create an account to save and manage your workflows."
-      footerText="Already have an account?"
-      footerLinkHref="/login"
-      footerLinkLabel="Login"
       compact
     >
       <form className="space-y-4" onSubmit={handleSubmit}>

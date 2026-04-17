@@ -12,13 +12,13 @@ export function validateLoginForm(
   const errors: FormErrors<keyof LoginFormValues> = {};
 
   if (!values.email.trim()) {
-    errors.email = "Email required hai.";
+    errors.email = "Email is required.";
   } else if (!emailRegex.test(values.email)) {
-    errors.email = "Valid email address enter karo.";
+    errors.email = "Please enter a valid email address.";
   }
 
   if (!values.password) {
-    errors.password = "Password required hai.";
+    errors.password = "Password is required.";
   }
 
   return errors;
@@ -30,30 +30,30 @@ export function validateSignUpForm(
   const errors: FormErrors<keyof SignUpFormValues> = {};
 
   if (!values.fullName.trim()) {
-    errors.fullName = "Full name required hai.";
+    errors.fullName = "Full name is required.";
   } else if (values.fullName.trim().length < 3) {
-    errors.fullName = "Naam kam se kam 3 characters ka hona chahiye.";
+    errors.fullName = "Full name must be at least 3 characters.";
   }
 
   if (!values.email.trim()) {
-    errors.email = "Email required hai.";
+    errors.email = "Email is required.";
   } else if (!emailRegex.test(values.email)) {
-    errors.email = "Valid email address enter karo.";
+    errors.email = "Please enter a valid email address.";
   }
 
   if (!values.password) {
-    errors.password = "Password required hai.";
+    errors.password = "Password is required.";
   } else if (values.password.length < 6) {
-    errors.password = "Password kam se kam 6 characters ka hona chahiye.";
+    errors.password = "Password must be at least 6 characters.";
   } else if (!/[A-Z]/.test(values.password) || !/[0-9]/.test(values.password)) {
     errors.password =
-      "Password me kam se kam 1 uppercase letter aur 1 number hona chahiye.";
+      "Password must include at least 1 uppercase letter and 1 number.";
   }
 
   if (!values.confirmPassword) {
-    errors.confirmPassword = "Confirm password required hai.";
+    errors.confirmPassword = "Please confirm your password.";
   } else if (values.password !== values.confirmPassword) {
-    errors.confirmPassword = "Password match nahi kar rahe.";
+    errors.confirmPassword = "Passwords do not match.";
   }
 
   return errors;

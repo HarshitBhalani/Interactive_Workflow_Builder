@@ -57,9 +57,6 @@ export function LoginPage() {
       badge="Login"
       title="Welcome back"
       description="Sign in to continue working on your workflows."
-      footerText="Don't have an account?"
-      footerLinkHref="/signup"
-      footerLinkLabel="Sign up"
     >
       <form className="space-y-5" onSubmit={handleSubmit}>
         <AuthInput
