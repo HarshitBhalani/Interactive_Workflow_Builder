@@ -1,6 +1,6 @@
 "use client";
 
-import type { JSX } from "react";
+import { useEffect, type JSX } from "react";
 import { AlertCircle, Info, Lock, Settings2 } from "lucide-react";
 import {
   Handle,
@@ -8,6 +8,7 @@ import {
   Position,
   useNodeId,
   useStore,
+  useUpdateNodeInternals,
   type NodeProps,
 } from "reactflow";
 import { cn } from "@/common/utils/cn.util";
@@ -76,6 +77,7 @@ export function WorkflowNode({
   selected,
 }: NodeProps<WorkflowNodeData>): JSX.Element {
   const currentNodeId = useNodeId();
+  const updateNodeInternals = useUpdateNodeInternals();
   const internalNode = useStore((state) =>
     currentNodeId ? state.nodeInternals.get(currentNodeId) : null,
   );
@@ -89,6 +91,8 @@ export function WorkflowNode({
   const hasValidationError = Boolean(data.validationMessage);
   const leftTargetHandleClassName =
     "!left-[-6px] !-translate-y-1/2 !translate-x-0";
+  const sourceHandleTop =
+    data.kind === "start" || data.kind === "action" ? "43%" : "50%";
   const accentColor = data.color ?? null;
   const customNodeSurfaceStyle = accentColor
     ? {
@@ -116,6 +120,10 @@ export function WorkflowNode({
           height: internalNode?.height ?? undefined,
         }
       : undefined;
+
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, isCondition, sourceHandleTop, updateNodeInternals]);
 
   return (
     <div
@@ -164,9 +172,9 @@ export function WorkflowNode({
         minHeight={110}
         position="bottom-right"
         className={cn(
-          "nodrag nopan !h-6 !w-6 !rounded-full !border !border-slate-200 !bg-white !text-slate-500 !shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition hover:!border-slate-300 hover:!text-slate-900",
-          data.isLocked ? "!pointer-events-none !opacity-0" : "",
-          selected ? "!opacity-100" : "!opacity-0 group-hover:!opacity-100",
+          "nodrag nopan h-6! w-6! rounded-full! border! border-slate-200! bg-white! text-slate-500! shadow-[0_8px_18px_rgba(15,23,42,0.12)]! transition hover:border-slate-300! hover:text-slate-900!",
+          data.isLocked ? "pointer-events-none! opacity-0!" : "",
+          selected ? "opacity-100!" : "opacity-0! group-hover:opacity-100!",
         )}
       >
         <svg
@@ -251,7 +259,7 @@ export function WorkflowNode({
           </div>
         </div>
 
-        <p className="mt-2 line-clamp-2 break-words pr-8 text-sm leading-5 text-slate-600">
+        <p className="mt-2 line-clamp-2 wrap-break-word pr-8 text-sm leading-5 text-slate-600">
           {data.subtitle}
         </p>
 
@@ -268,11 +276,11 @@ export function WorkflowNode({
               position={Position.Right}
               style={{top: "34%"}}
               className={cn(
-                "!left-auto !right-[-6px] !-translate-y-1/2 !translate-x-0 h-3! w-3! border-2! border-white! bg-emerald-500! opacity-90! shadow-[0_0_0_0_rgba(16,185,129,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(16,185,129,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(16,185,129,0.24)]!",
+                "left-auto! -right-1.5! -translate-y-1/2! translate-x-0! h-3! w-3! border-2! border-white! bg-emerald-500! opacity-90! shadow-[0_0_0_0_rgba(16,185,129,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(16,185,129,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(16,185,129,0.24)]!",
                 selected
                   ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(16,185,129,0.18)]!"
                   : "",
-                data.isLocked ? "!pointer-events-none !opacity-40" : "",
+                data.isLocked ? "pointer-events-none! opacity-40!" : "",
               )}
             />
 
@@ -282,11 +290,11 @@ export function WorkflowNode({
               position={Position.Right}
               style={{ top: "66%" }}
               className={cn(
-                "!left-auto !right-[-6px] !-translate-y-1/2 !translate-x-0 h-3! w-3! border-2! border-white! bg-rose-500! opacity-90! shadow-[0_0_0_0_rgba(244,63,94,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(244,63,94,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(244,63,94,0.24)]!",
+                "left-auto! -right-1.5! -translate-y-1/2! translate-x-0! h-3! w-3! border-2! border-white! bg-rose-500! opacity-90! shadow-[0_0_0_0_rgba(244,63,94,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(244,63,94,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(244,63,94,0.24)]!",
                 selected
                   ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(244,63,94,0.18)]!"
                   : "",
-                data.isLocked ? "!pointer-events-none !opacity-40" : "",
+                data.isLocked ? "pointer-events-none! opacity-40!" : "",
               )
             }
             />
@@ -301,13 +309,13 @@ export function WorkflowNode({
           <Handle
             type="source"
             position={Position.Right}
-            style={{ top: "50%" }}
+            style={{ top: sourceHandleTop }}
             className={cn(
-              "!left-auto !right-[-6px] !-translate-y-1/2 !translate-x-0 h-3! w-3! border-2! border-white! bg-slate-400! opacity-85! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
+              "left-auto! -right-1.5! -translate-y-1/2! translate-x-0! h-3! w-3! border-2! border-white! bg-slate-400! opacity-85! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
               selected
                 ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(148,163,184,0.16)]!"
                 : "",
-              data.isLocked ? "!pointer-events-none !opacity-40" : "",
+              data.isLocked ? "pointer-events-none! opacity-40!" : "",
             )}
           />
         )}

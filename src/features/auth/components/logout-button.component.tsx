@@ -34,7 +34,7 @@ export function LogoutButton() {
         Welcome, <strong>{user.displayName || user.email}</strong>
       </span>
       <Button
-        className="rounded-xl"
+        className="rounded-xl border-rose-200/80 text-rose-600 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
         disabled={isLoading}
         onClick={handleLogout}
         type="button"
