@@ -2,13 +2,32 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
+const firebaseEnvConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+const missingFirebaseEnvKeys = Object.entries(firebaseEnvConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
+
+if (missingFirebaseEnvKeys.length > 0) {
+  throw new Error(
+    `Missing Firebase environment variables: ${missingFirebaseEnvKeys.join(", ")}`
+  );
+}
+
 const firebaseConfig = {
-  apiKey: "AIzaSyBTtmmrznRPRYg7C2tfqRRFKnXVEEKlsOE",
-  authDomain: "workflow-builder-a552b.firebaseapp.com",
-  projectId: "workflow-builder-a552b",
-  storageBucket: "workflow-builder-a552b.firebasestorage.app",
-  messagingSenderId: "299336668354",
-  appId: "1:299336668354:web:27afc3372c28ac6b81175b",
+  apiKey: firebaseEnvConfig.apiKey,
+  authDomain: firebaseEnvConfig.authDomain,
+  projectId: firebaseEnvConfig.projectId,
+  storageBucket: firebaseEnvConfig.storageBucket,
+  messagingSenderId: firebaseEnvConfig.messagingSenderId,
+  appId: firebaseEnvConfig.appId,
 };
 
 const app = initializeApp(firebaseConfig);
