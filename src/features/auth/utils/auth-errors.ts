@@ -11,6 +11,7 @@ const firebaseAuthErrorMessages: Record<string, string> = {
   "auth/network-request-failed":
     "A network error occurred. Please check your internet connection.",
   "auth/missing-password": "Password is required.",
+  "auth/missing-email": "Please enter your email address first.",
 };
 
 export function getFirebaseAuthErrorMessage(error: unknown): {

@@ -81,6 +81,15 @@ export function LoginPage() {
           onChange={(event) => handleChange("password", event.target.value)}
         />
 
+        <div className="flex justify-end">
+          <Link
+            href="/forgot-password"
+            className="inline-flex rounded-full px-1 text-sm font-semibold text-sky-700 transition hover:text-sky-900"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
         {errors.submit ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errors.submit}

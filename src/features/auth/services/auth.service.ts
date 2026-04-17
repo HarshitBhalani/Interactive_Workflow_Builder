@@ -1,5 +1,6 @@
 import {
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
@@ -8,6 +9,27 @@ import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "@/features/auth/config/firebase";
 import { getFirebaseAuthErrorMessage } from "@/features/auth/utils/auth-errors";
 import type { AuthResult } from "@/features/auth/types/auth.type";
+
+const localhostResetRedirectUrl = "http://localhost:3000/login";
+const productionResetRedirectUrl =
+  "https://interactive-workflow-builder.vercel.app/login";
+
+function getPasswordResetRedirectUrl(): string {
+  if (typeof window === "undefined") {
+    return productionResetRedirectUrl;
+  }
+
+  const currentOrigin = window.location.origin;
+
+  if (
+    currentOrigin.includes("localhost:3000") ||
+    currentOrigin.includes("127.0.0.1:3000")
+  ) {
+    return localhostResetRedirectUrl;
+  }
+
+  return productionResetRedirectUrl;
+}
 
 export async function signUpUser(
   email: string,
@@ -91,6 +113,32 @@ export async function logoutUser(): Promise<{
     return {
       success: false,
       message: "Logout could not be completed. Please try again.",
+    };
+  }
+}
+
+export async function sendForgotPasswordEmail(email: string): Promise<{
+  success: boolean;
+  message: string;
+  code?: string;
+}> {
+  try {
+    await sendPasswordResetEmail(auth, email.trim(), {
+      url: getPasswordResetRedirectUrl(),
+      handleCodeInApp: false,
+    });
+
+    return {
+      success: true,
+      message: "Password reset email sent. Please check your inbox.",
+    };
+  } catch (error) {
+    const parsedError = getFirebaseAuthErrorMessage(error);
+
+    return {
+      success: false,
+      message: parsedError.message,
+      code: parsedError.code,
     };
   }
 }
