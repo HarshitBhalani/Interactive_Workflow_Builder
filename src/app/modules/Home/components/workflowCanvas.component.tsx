@@ -844,7 +844,50 @@ function WorkflowCanvas({
               </>
             ) : null}
           </div>
-        ) : null}
+        ) : (
+          <div className="absolute left-1/2 top-3 z-10 flex w-[min(calc(100%-1.25rem),16.5rem)] -translate-x-1/2 items-center gap-1 rounded-xl border border-slate-200 bg-white/96 p-1 shadow-[0_12px_24px_rgba(15,23,42,0.12)] backdrop-blur">
+            <button
+              type="button"
+              aria-label="Selection mode"
+              title="Selection mode"
+              onClick={() => setInteractionMode("select")}
+              className={cn(
+                "flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition",
+                isSelectionMode
+                  ? "bg-sky-500 text-white shadow-[0_10px_18px_rgba(14,165,233,0.28)]"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+              )}
+            >
+              <MousePointer2 size={14} />
+              <span>Cursor</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Drag mode"
+              title="Drag mode"
+              onClick={() => setInteractionMode("pan")}
+              className={cn(
+                "flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition",
+                !isSelectionMode
+                  ? "bg-slate-900 text-white shadow-[0_10px_18px_rgba(15,23,42,0.18)]"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+              )}
+            >
+              <Hand size={14} />
+              <span>Drag</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Reset zoom to 100%"
+              title="Reset zoom to 100%"
+              onClick={handleResetZoom}
+              className="flex h-9 min-w-[4.25rem] items-center justify-center gap-1 rounded-lg px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+            >
+              <SearchCheck size={13} />
+              <span>{zoomLabel}</span>
+            </button>
+          </div>
+        )}
         <div className="absolute bottom-4 left-4 z-10 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_24px_rgba(15,23,42,0.12)]">
           <button
             type="button"
