@@ -88,7 +88,7 @@ export function WorkflowNode({
     statusAppearance[data.status] ?? statusAppearance.idle;
   const hasValidationError = Boolean(data.validationMessage);
   const leftTargetHandleClassName =
-    "!left-0 !top-1/2 !-translate-x-1/2 !-translate-y-1/2";
+    "!left-[-6px] !-translate-y-1/2 !translate-x-0";
   const accentColor = data.color ?? null;
   const customNodeSurfaceStyle = accentColor
     ? {
@@ -185,8 +185,9 @@ export function WorkflowNode({
       <Handle
         type="target"
         position={Position.Left}
+        style={{ top: "50%" }}
         className={cn(
-          "h-3.5! w-3.5! border-2! border-white! bg-slate-400! opacity-80! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
+          "h-3! w-3! border-2! border-white! bg-slate-400! opacity-85! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
           leftTargetHandleClassName,
           selected
             ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(148,163,184,0.16)]!"
@@ -196,7 +197,7 @@ export function WorkflowNode({
 
       <div
         className={cn(
-          "relative z-10 flex h-full min-h-0 flex-col overflow-hidden",
+          "relative z-10 flex h-full min-h-0 flex-col",
           nodeShapeAppearance.contentClassName,
         )}
       >
@@ -267,7 +268,7 @@ export function WorkflowNode({
               position={Position.Right}
               style={{top: "34%"}}
               className={cn(
-                "!left-auto !right-[-7px] !-translate-y-1/2 !translate-x-0 h-3.5! w-3.5! border-2! border-white! bg-emerald-500! opacity-85! shadow-[0_0_0_0_rgba(16,185,129,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(16,185,129,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(16,185,129,0.24)]!",
+                "!left-auto !right-[-6px] !-translate-y-1/2 !translate-x-0 h-3! w-3! border-2! border-white! bg-emerald-500! opacity-90! shadow-[0_0_0_0_rgba(16,185,129,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(16,185,129,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(16,185,129,0.24)]!",
                 selected
                   ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(16,185,129,0.18)]!"
                   : "",
@@ -281,7 +282,7 @@ export function WorkflowNode({
               position={Position.Right}
               style={{ top: "66%" }}
               className={cn(
-                "!left-auto !right-[-7px] !-translate-y-1/2 !translate-x-0 h-3.5! w-3.5! border-2! border-white! bg-rose-500! opacity-85! shadow-[0_0_0_0_rgba(244,63,94,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(244,63,94,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(244,63,94,0.24)]!",
+                "!left-auto !right-[-6px] !-translate-y-1/2 !translate-x-0 h-3! w-3! border-2! border-white! bg-rose-500! opacity-90! shadow-[0_0_0_0_rgba(244,63,94,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(244,63,94,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(244,63,94,0.24)]!",
                 selected
                   ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(244,63,94,0.18)]!"
                   : "",
@@ -300,8 +301,9 @@ export function WorkflowNode({
           <Handle
             type="source"
             position={Position.Right}
+            style={{ top: "50%" }}
             className={cn(
-              "!left-auto !right-[-7px] !top-1/2 !-translate-y-1/2 !translate-x-0 h-3.5! w-3.5! border-2! border-white! bg-slate-400! opacity-80! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
+              "!left-auto !right-[-6px] !-translate-y-1/2 !translate-x-0 h-3! w-3! border-2! border-white! bg-slate-400! opacity-85! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
               selected
                 ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(148,163,184,0.16)]!"
                 : "",
