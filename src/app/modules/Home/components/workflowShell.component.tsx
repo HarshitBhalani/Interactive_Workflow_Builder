@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow"; //bcaz Zustand me object selector use karte time unnecessary re-render avoid karne ke liye
 import type { JSX } from "react";
@@ -26,8 +28,18 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/common/utils/cn.util";
 import { useAuth } from "@/features/auth/context/auth.context";
+import { WorkflowSaveDialog } from "@/features/workflows/components/workflow-save-dialog.component";
+import {
+  createWorkflowDocument,
+  getWorkflowDocumentById,
+  updateWorkflowDocument,
+} from "@/features/workflows/services/workflow.service";
 import { useWorkflowStore } from "../stores/workflow.store";
 import { LogoutButton } from "@/features/auth/components/logout-button.component";
+import {
+  workflowPreviewEdges,
+  workflowPreviewNodes,
+} from "../configs/workflowPreview.config";
 import type {
   WorkflowExecutionLog,
   WorkflowValidationSummary,
@@ -94,8 +106,16 @@ type WorkflowClipboardSelection = {
   nodes: WorkflowGraphNode[];
   edges: WorkflowGraphEdge[];
 };
+type WorkflowShellProps = {
+  workflowId?: string;
+};
 
 const dragDataKey="application/workflow-node-kind";
+const workflowAutoSaveDelayMs = 1800;
+const defaultEditorSnapshot = createWorkflowSnapshot(
+  workflowPreviewNodes,
+  workflowPreviewEdges,
+);
 const nodeColorOptions = [
   "#10b981",
   "#0ea5e9",
@@ -230,7 +250,8 @@ function getCanvasNodeBounds(
   };
 }
 
-export function WorkflowShell(): JSX.Element {
+export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
+  const router = useRouter();
   const { user, loading } = useAuth();
 
 
@@ -255,7 +276,6 @@ export function WorkflowShell(): JSX.Element {
       connectNodes: state.connectNodes,
       updateNodeDetails: state.updateNodeDetails,
       loadWorkflowSnapshot: state.loadWorkflowSnapshot,
-      resetWorkflow: state.resetWorkflow,
       resetExecution: state.resetExecution,
       runWorkflow: state.runWorkflow,
       undo: state.undo,
@@ -288,7 +308,6 @@ export function WorkflowShell(): JSX.Element {
     connectNodes,
     updateNodeDetails,
     loadWorkflowSnapshot,
-    resetWorkflow,
     resetExecution,
     runWorkflow,
     undo,
@@ -325,12 +344,28 @@ export function WorkflowShell(): JSX.Element {
   const [acknowledgedExecutionLogsRunId, setAcknowledgedExecutionLogsRunId] = useState(0);
   const [showValidationFeedback, setShowValidationFeedback] = useState(false);
   const [mobileDragState, setMobileDragState] = useState<MobileDragState | null>(null);
+  const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(
+    workflowId ?? null,
+  );
+  const [currentWorkflowName, setCurrentWorkflowName] = useState("");
+  const [currentWorkflowDescription, setCurrentWorkflowDescription] = useState("");
+  const [workflowResetSnapshot, setWorkflowResetSnapshot] =
+    useState<WorkflowSnapshot>(defaultEditorSnapshot);
+  const [isWorkflowLoading, setIsWorkflowLoading] = useState(Boolean(workflowId));
+  const [workflowLoadError, setWorkflowLoadError] = useState("");
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isSavingWorkflow, setIsSavingWorkflow] = useState(false);
+  const [workflowSaveError, setWorkflowSaveError] = useState("");
+  const [workflowSaveStatus, setWorkflowSaveStatus] = useState<
+    "unsaved" | "saving" | "saved" | "error"
+  >("unsaved");
 
 
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const copiedNodeRef = useRef<WorkflowGraphNode | null>(null);
   const copiedSelectionRef = useRef<WorkflowClipboardSelection | null>(null);
   const pasteCountRef = useRef(0);
+  const lastSavedSnapshotKeyRef = useRef(JSON.stringify(defaultEditorSnapshot));
 
   const selectedNode =nodeEditor.editingNodeId
     ? (nodes.find((node)=>node.id===nodeEditor.editingNodeId) ?? null) : null;
@@ -487,6 +522,128 @@ export function WorkflowShell(): JSX.Element {
   }, [isCompactViewport, isExecutionLogsOpen]);
 
   useEffect(() => {
+    if (loading || !user) {
+      return;
+    }
+
+    const activeUser = user;
+    let isCancelled = false;
+
+    async function syncWorkflowWithRoute(): Promise<void> {
+      setWorkflowLoadError("");
+      closeNodeEditor();
+      closeJsonModal();
+      resetExecution();
+
+      if (!workflowId) {
+        if (isCancelled) {
+          return;
+        }
+
+        setCurrentWorkflowId(null);
+        setCurrentWorkflowName("");
+        setCurrentWorkflowDescription("");
+        setWorkflowResetSnapshot(defaultEditorSnapshot);
+        lastSavedSnapshotKeyRef.current = JSON.stringify(defaultEditorSnapshot);
+        setWorkflowSaveStatus("unsaved");
+        loadWorkflowSnapshot(defaultEditorSnapshot);
+        setViewportResetToken((currentToken) => currentToken + 1);
+        setIsWorkflowLoading(false);
+        return;
+      }
+
+      setIsWorkflowLoading(true);
+
+      const result = await getWorkflowDocumentById({
+        workflowId,
+        userId: activeUser.uid,
+      });
+
+      if (isCancelled) {
+        return;
+      }
+
+      if (!result.success) {
+        setWorkflowLoadError(result.message);
+        setIsWorkflowLoading(false);
+        return;
+      }
+
+      setCurrentWorkflowId(result.workflow.id);
+      setCurrentWorkflowName(result.workflow.name);
+      setCurrentWorkflowDescription(result.workflow.description ?? "");
+      setWorkflowResetSnapshot(result.workflow.snapshot);
+      lastSavedSnapshotKeyRef.current = JSON.stringify(result.workflow.snapshot);
+      setWorkflowSaveStatus("saved");
+      loadWorkflowSnapshot(result.workflow.snapshot);
+      setViewportResetToken((currentToken) => currentToken + 1);
+      setIsWorkflowLoading(false);
+    }
+
+    void syncWorkflowWithRoute();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [workflowId, user, loading, loadWorkflowSnapshot, resetExecution]);
+
+  useEffect(() => {
+    if (!currentWorkflowId || !currentWorkflowName || !user || isWorkflowLoading) {
+      return;
+    }
+
+    const snapshot = createWorkflowSnapshot(nodes, edges);
+    const snapshotKey = JSON.stringify(snapshot);
+
+    if (snapshotKey === lastSavedSnapshotKeyRef.current) {
+      if (workflowSaveStatus !== "saved") {
+        setWorkflowSaveStatus("saved");
+      }
+      return;
+    }
+
+    setWorkflowSaveStatus("unsaved");
+
+    const timer = window.setTimeout(async () => {
+      setIsSavingWorkflow(true);
+      setWorkflowSaveStatus("saving");
+      setWorkflowSaveError("");
+
+      const result = await updateWorkflowDocument({
+        workflowId: currentWorkflowId,
+        userId: user.uid,
+        name: currentWorkflowName,
+        description: currentWorkflowDescription,
+        snapshot,
+      });
+
+      if (!result.success) {
+        setWorkflowSaveError(result.message);
+        setWorkflowSaveStatus("error");
+        setIsSavingWorkflow(false);
+        return;
+      }
+
+      lastSavedSnapshotKeyRef.current = snapshotKey;
+      setWorkflowResetSnapshot(snapshot);
+      setWorkflowSaveStatus("saved");
+      setIsSavingWorkflow(false);
+    }, workflowAutoSaveDelayMs);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    currentWorkflowId,
+    currentWorkflowName,
+    currentWorkflowDescription,
+    user,
+    isWorkflowLoading,
+    nodes,
+    edges,
+  ]);
+
+  useEffect(() => {
     if (!isCompactViewport) {
       return;
     }
@@ -608,6 +765,20 @@ export function WorkflowShell(): JSX.Element {
     });
   }
 
+  function openSaveWorkflowDialog(): void {
+    setWorkflowSaveError("");
+    setIsSaveDialogOpen(true);
+  }
+
+  function closeSaveWorkflowDialog(): void {
+    if (isSavingWorkflow) {
+      return;
+    }
+
+    setWorkflowSaveError("");
+    setIsSaveDialogOpen(false);
+  }
+
   function handleConnect(connection: Connection): void {
     connectNodes(connection);
   }
@@ -717,8 +888,22 @@ export function WorkflowShell(): JSX.Element {
     setShowValidationFeedback(false);
     closeNodeEditor();
     closeJsonModal();
-    resetWorkflow();
+    closeSaveWorkflowDialog();
+    setWorkflowResetSnapshot(defaultEditorSnapshot);
+    setWorkflowSaveError("");
+    loadWorkflowSnapshot(defaultEditorSnapshot);
     setViewportResetToken((currentToken) => currentToken + 1);
+
+    if (currentWorkflowId) {
+      setWorkflowSaveStatus("unsaved");
+    } else {
+      setCurrentWorkflowId(null);
+      setCurrentWorkflowName("");
+      setCurrentWorkflowDescription("");
+      lastSavedSnapshotKeyRef.current = JSON.stringify(defaultEditorSnapshot);
+      setWorkflowSaveStatus("unsaved");
+      router.replace("/workflows/new");
+    }
 
     if (isCompactViewport) {
       canvasContainerRef.current?.scrollIntoView({
@@ -726,7 +911,7 @@ export function WorkflowShell(): JSX.Element {
         block: "center",
       });
     }
-  },[isCompactViewport, resetWorkflow]);
+  },[closeSaveWorkflowDialog, currentWorkflowId, isCompactViewport, loadWorkflowSnapshot, router]);
 
   const handleRunWorkflow=useCallback(():void=>{
     setShowValidationFeedback(true);
@@ -745,6 +930,83 @@ export function WorkflowShell(): JSX.Element {
     setAcknowledgedExecutionLogsRunId(0);
     resetExecution();
   },[resetExecution]);
+
+  const handleSaveWorkflow = useCallback(
+    async (name: string, description = currentWorkflowDescription): Promise<void> => {
+      if (!user) {
+        setWorkflowSaveError("You need to be signed in to save workflows.");
+        setWorkflowSaveStatus("error");
+        return;
+      }
+
+      const snapshot = createWorkflowSnapshot(nodes, edges);
+      const snapshotKey = JSON.stringify(snapshot);
+
+      setIsSavingWorkflow(true);
+      setWorkflowSaveStatus("saving");
+      setWorkflowSaveError("");
+
+      if (!currentWorkflowId) {
+        const result = await createWorkflowDocument({
+          userId: user.uid,
+          name,
+          description,
+          snapshot,
+        });
+
+        if (!result.success) {
+          setWorkflowSaveError(result.message);
+          setWorkflowSaveStatus("error");
+          setIsSavingWorkflow(false);
+          return;
+        }
+
+        setCurrentWorkflowId(result.workflowId);
+        setCurrentWorkflowName(name);
+        setCurrentWorkflowDescription(description);
+        setWorkflowResetSnapshot(snapshot);
+        lastSavedSnapshotKeyRef.current = snapshotKey;
+        setWorkflowSaveStatus("saved");
+        setIsSavingWorkflow(false);
+        setIsSaveDialogOpen(false);
+        router.replace(`/workflows/${result.workflowId}`);
+        return;
+      }
+
+      const result = await updateWorkflowDocument({
+        workflowId: currentWorkflowId,
+        userId: user.uid,
+        name,
+        description,
+        snapshot,
+      });
+
+      if (!result.success) {
+        setWorkflowSaveError(result.message);
+        setWorkflowSaveStatus("error");
+        setIsSavingWorkflow(false);
+        return;
+      }
+
+      setCurrentWorkflowName(name);
+      setCurrentWorkflowDescription(description);
+      setWorkflowResetSnapshot(snapshot);
+      lastSavedSnapshotKeyRef.current = snapshotKey;
+      setWorkflowSaveStatus("saved");
+      setIsSavingWorkflow(false);
+      setIsSaveDialogOpen(false);
+    },
+    [currentWorkflowDescription, currentWorkflowId, edges, nodes, router, user],
+  );
+
+  const handlePrimarySaveAction = useCallback((): void => {
+    if (currentWorkflowId && currentWorkflowName.trim().length > 0) {
+      void handleSaveWorkflow(currentWorkflowName);
+      return;
+    }
+
+    openSaveWorkflowDialog();
+  }, [currentWorkflowId, currentWorkflowName, handleSaveWorkflow]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   function handleAddNode(kind: WorkflowNodeKind, shape?: WorkflowNodeShape): void {
@@ -911,6 +1173,10 @@ export function WorkflowShell(): JSX.Element {
 
   useEffect(()=>{
     function handleKeyDown(event: KeyboardEvent): void {
+      if (typeof event.key !== "string" || event.key.length === 0) {
+        return;
+      }
+
       const pressedKey = event.key.toLowerCase();
       const isPrimaryModifierPressed = event.ctrlKey || event.metaKey;
       const isEditorOpen = nodeEditor.editingNodeId !== null || jsonModal.mode !== null; //because both node editor and json modal are considered as "editor" in this context
@@ -1187,18 +1453,107 @@ export function WorkflowShell(): JSX.Element {
     );
   }
 
+  if (isWorkflowLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#edf0f2] px-4">
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-sky-100 border-t-sky-600" />
+          <p className="mt-4 text-sm font-medium text-slate-600">
+            Loading workflow...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (workflowLoadError) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#edf0f2] px-4">
+        <Card className="w-full max-w-xl rounded-[28px] border-white/70 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.14)] backdrop-blur">
+          <CardHeader className="text-center">
+            <CardTitle>Workflow unavailable</CardTitle>
+            <CardDescription className="mt-2">
+              {workflowLoadError}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href="/dashboard"
+              className={buttonVariants({ variant: "default" })}
+            >
+              Go to dashboard
+            </Link>
+            <Link
+              href="/workflows/new"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Create new workflow
+            </Link>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4 lg:h-screen lg:overflow-hidden">
       <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-7xl flex-col rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)] lg:h-full lg:min-h-0 lg:overflow-hidden">
         <header className="flex flex-col gap-4 border-b border-black/8 px-4 py-4 sm:px-5 sm:py-5 lg:flex-row lg:items-end lg:justify-between lg:px-6">
           <div className="flex flex-col gap-4 flex-1">
             <WorkflowHeading />
+            <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
+              <Badge variant="outline">
+                {currentWorkflowName || "Unsaved workflow"}
+              </Badge>
+              {currentWorkflowId ? (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    workflowSaveStatus === "saved"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "",
+                    workflowSaveStatus === "saving"
+                      ? "border-amber-200 bg-amber-50 text-amber-700"
+                      : "",
+                    workflowSaveStatus === "unsaved"
+                      ? "border-sky-200 bg-sky-50 text-sky-700"
+                      : "",
+                    workflowSaveStatus === "error"
+                      ? "border-rose-200 bg-rose-50 text-rose-700"
+                      : "",
+                  )}
+                >
+                  {workflowSaveStatus === "saved"
+                    ? "Saved"
+                    : workflowSaveStatus === "saving"
+                      ? "Saving..."
+                      : workflowSaveStatus === "error"
+                        ? "Save failed"
+                        : "Unsaved changes"}
+                </Badge>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end w-full lg:w-auto">
             <LogoutButton />
             
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-start">
+              <Link
+                href="/dashboard"
+                className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
+              >
+                Dashboard
+              </Link>
+
+              <Button
+                type="button"
+                onClick={handlePrimarySaveAction}
+                className="w-full sm:w-auto"
+              >
+                Save
+              </Button>
+
               <Button
                 variant="outline"
                 type="button"
@@ -1826,6 +2181,19 @@ export function WorkflowShell(): JSX.Element {
           </div>
         </div>
       ) : null}
+
+      <WorkflowSaveDialog
+        open={isSaveDialogOpen}
+        defaultName={currentWorkflowName}
+        defaultDescription={currentWorkflowDescription}
+        mode={currentWorkflowId ? "update" : "create"}
+        isSaving={isSavingWorkflow}
+        error={workflowSaveError}
+        onClose={closeSaveWorkflowDialog}
+        onSubmit={(name, description) => {
+          void handleSaveWorkflow(name, description);
+        }}
+      />
     </main>
   );
 }

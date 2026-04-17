@@ -70,7 +70,7 @@ export function SignUpPage() {
           id="signup-fullName"
           autoComplete="name"
           label="Full name"
-          placeholder="Harshit Sharma"
+          placeholder="Harshit Bhalani"
           value={formData.fullName}
           error={errors.fullName}
           onChange={(event) => handleChange("fullName", event.target.value)}

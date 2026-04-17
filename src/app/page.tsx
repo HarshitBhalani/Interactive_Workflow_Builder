@@ -1,12 +1,5 @@
-"use client";
-
-import { HomePage } from "@/app/modules/Home/pages/home.page";
-import { ProtectedLayout } from "@/features/auth/layouts/protected.layout";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return (
-    <ProtectedLayout>
-      <HomePage />
-    </ProtectedLayout>
-  );
+  redirect("/dashboard");
 }
