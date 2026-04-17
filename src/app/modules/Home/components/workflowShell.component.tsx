@@ -16,7 +16,7 @@ import type {
   XYPosition,
 } from "reactflow";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -1169,12 +1169,18 @@ export function WorkflowShell(): JSX.Element {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Button asChild type="button">
-              <a href="/login">Go to login</a>
-            </Button>
-            <Button asChild variant="outline" type="button">
-              <a href="/signup">Create account</a>
-            </Button>
+            <a
+              href="/login"
+              className={buttonVariants({ variant: "default" })}
+            >
+              Go to login
+            </a>
+            <a
+              href="/signup"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Create account
+            </a>
           </CardContent>
         </Card>
       </main>
