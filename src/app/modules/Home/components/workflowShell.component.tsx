@@ -25,6 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/common/utils/cn.util";
+import { useAuth } from "@/features/auth/context/auth.context";
 import { useWorkflowStore } from "../stores/workflow.store";
 import { LogoutButton } from "@/features/auth/components/logout-button.component";
 import type {
@@ -230,6 +231,7 @@ function getCanvasNodeBounds(
 }
 
 export function WorkflowShell(): JSX.Element {
+  const { user, loading } = useAuth();
 
 
   const workflowStore = useWorkflowStore(
@@ -1142,6 +1144,42 @@ export function WorkflowShell(): JSX.Element {
       window.removeEventListener("touchcancel", handleTouchCancel);
     };
   }, [addNode, canvasState.reactFlowInstance, isCompactViewport, mobileDragState]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.2),transparent_35%),linear-gradient(180deg,#f8fbff_0%,#eef6ff_100%)]">
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-sky-100 border-t-sky-600" />
+          <p className="mt-4 text-sm font-medium text-slate-600">
+            Checking your session...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.2),transparent_35%),linear-gradient(180deg,#f8fbff_0%,#eef6ff_100%)] px-4">
+        <Card className="w-full max-w-xl rounded-[28px] border-white/70 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.14)] backdrop-blur">
+          <CardHeader className="text-center">
+            <CardTitle>Sign in required</CardTitle>
+            <CardDescription className="mt-2">
+              You need an account to access and edit workflows.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Button asChild type="button">
+              <a href="/login">Go to login</a>
+            </Button>
+            <Button asChild variant="outline" type="button">
+              <a href="/signup">Create account</a>
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4 lg:h-screen lg:overflow-hidden">
