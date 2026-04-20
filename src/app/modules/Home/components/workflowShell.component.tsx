@@ -26,6 +26,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/common/utils/cn.util";
 import { useAuth } from "@/features/auth/context/auth.context";
 import { WorkflowSaveDialog } from "@/features/workflows/components/workflow-save-dialog.component";
@@ -250,6 +251,43 @@ function getCanvasNodeBounds(
   };
 }
 
+function formatRelativeSaveTime(savedAtIso: string, nowTimestamp: number): string {
+  const savedAtTimestamp = new Date(savedAtIso).getTime();
+
+  if (Number.isNaN(savedAtTimestamp)) {
+    return "Saved";
+  }
+
+  const elapsedSeconds = Math.max(
+    0,
+    Math.floor((nowTimestamp - savedAtTimestamp) / 1000),
+  );
+
+  if (elapsedSeconds < 5) {
+    return "Saved just now";
+  }
+
+  if (elapsedSeconds < 60) {
+    return `Saved ${elapsedSeconds} seconds ago`;
+  }
+
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+
+  if (elapsedMinutes < 60) {
+    return `Saved ${elapsedMinutes} minute${elapsedMinutes === 1 ? "" : "s"} ago`;
+  }
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+
+  if (elapsedHours < 24) {
+    return `Saved ${elapsedHours} hour${elapsedHours === 1 ? "" : "s"} ago`;
+  }
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+
+  return `Saved ${elapsedDays} day${elapsedDays === 1 ? "" : "s"} ago`;
+}
+
 export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -359,6 +397,8 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
   const [workflowSaveStatus, setWorkflowSaveStatus] = useState<
     "unsaved" | "saving" | "saved" | "error"
   >("unsaved");
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [saveTimeNow, setSaveTimeNow] = useState(() => Date.now());
 
 
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
@@ -546,6 +586,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
         setWorkflowResetSnapshot(defaultEditorSnapshot);
         lastSavedSnapshotKeyRef.current = JSON.stringify(defaultEditorSnapshot);
         setWorkflowSaveStatus("unsaved");
+        setLastSavedAt(null);
         loadWorkflowSnapshot(defaultEditorSnapshot);
         setViewportResetToken((currentToken) => currentToken + 1);
         setIsWorkflowLoading(false);
@@ -575,6 +616,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
       setWorkflowResetSnapshot(result.workflow.snapshot);
       lastSavedSnapshotKeyRef.current = JSON.stringify(result.workflow.snapshot);
       setWorkflowSaveStatus("saved");
+      setLastSavedAt(result.workflow.updatedAt ?? result.workflow.createdAt);
       loadWorkflowSnapshot(result.workflow.snapshot);
       setViewportResetToken((currentToken) => currentToken + 1);
       setIsWorkflowLoading(false);
@@ -627,21 +669,30 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
       lastSavedSnapshotKeyRef.current = snapshotKey;
       setWorkflowResetSnapshot(snapshot);
       setWorkflowSaveStatus("saved");
+      setLastSavedAt(new Date().toISOString());
       setIsSavingWorkflow(false);
     }, workflowAutoSaveDelayMs);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [
-    currentWorkflowId,
-    currentWorkflowName,
-    currentWorkflowDescription,
-    user,
-    isWorkflowLoading,
-    nodes,
-    edges,
-  ]);
+  }, [currentWorkflowId, currentWorkflowName, currentWorkflowDescription, user, isWorkflowLoading, nodes, edges, workflowSaveStatus]);
+
+  useEffect(() => {
+    if (workflowSaveStatus !== "saved" || !lastSavedAt) {
+      return;
+    }
+
+    setSaveTimeNow(Date.now());
+
+    const interval = window.setInterval(() => {
+      setSaveTimeNow(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [lastSavedAt, workflowSaveStatus]);
 
   useEffect(() => {
     if (!isCompactViewport) {
@@ -770,6 +821,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
     setIsSaveDialogOpen(true);
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   function closeSaveWorkflowDialog(): void {
     if (isSavingWorkflow) {
       return;
@@ -967,6 +1019,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
         setWorkflowResetSnapshot(snapshot);
         lastSavedSnapshotKeyRef.current = snapshotKey;
         setWorkflowSaveStatus("saved");
+        setLastSavedAt(new Date().toISOString());
         setIsSavingWorkflow(false);
         setIsSaveDialogOpen(false);
         router.replace(`/workflows/${result.workflowId}`);
@@ -993,6 +1046,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
       setWorkflowResetSnapshot(snapshot);
       lastSavedSnapshotKeyRef.current = snapshotKey;
       setWorkflowSaveStatus("saved");
+      setLastSavedAt(new Date().toISOString());
       setIsSavingWorkflow(false);
       setIsSaveDialogOpen(false);
     },
@@ -1413,12 +1467,36 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.2),transparent_35%),linear-gradient(180deg,#f8fbff_0%,#eef6ff_100%)]">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-sky-100 border-t-sky-600" />
-          <p className="mt-4 text-sm font-medium text-slate-600">
-            Checking your session...
-          </p>
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.2),transparent_35%),linear-gradient(180deg,#f8fbff_0%,#eef6ff_100%)] px-3 py-3 sm:px-6 sm:py-4">
+        <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-7xl flex-col rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)] lg:min-h-0">
+          <div className="space-y-5 border-b border-black/8 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
+            <Skeleton className="h-10 w-64 max-w-full" />
+            <div className="flex flex-wrap gap-2">
+              <Skeleton className="h-9 w-28 rounded-xl" />
+              <Skeleton className="h-9 w-28 rounded-xl" />
+              <Skeleton className="h-9 w-28 rounded-xl" />
+            </div>
+          </div>
+          <div className="grid flex-1 gap-0 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
+            <div className="hidden border-r border-black/8 bg-[#f6f8f9] p-5 lg:block">
+              <div className="space-y-4">
+                <Skeleton className="h-8 w-28" />
+                <Skeleton className="h-24 rounded-2xl" />
+                <Skeleton className="h-24 rounded-2xl" />
+                <Skeleton className="h-24 rounded-2xl" />
+              </div>
+            </div>
+            <div className="p-4 sm:p-5 lg:p-6">
+              <Skeleton className="h-[60vh] rounded-3xl" />
+            </div>
+            <div className="hidden border-l border-black/8 bg-[#f6f8f9] p-5 lg:block">
+              <div className="space-y-4">
+                <Skeleton className="h-8 w-36" />
+                <Skeleton className="h-32 rounded-2xl" />
+                <Skeleton className="h-24 rounded-2xl" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1455,12 +1533,34 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
 
   if (isWorkflowLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#edf0f2] px-4">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-sky-100 border-t-sky-600" />
-          <p className="mt-4 text-sm font-medium text-slate-600">
-            Loading workflow...
-          </p>
+      <main className="min-h-screen bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4 lg:h-screen lg:overflow-hidden">
+        <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-7xl flex-col rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)] lg:h-full lg:min-h-0 lg:overflow-hidden">
+          <div className="space-y-5 border-b border-black/8 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
+            <Skeleton className="h-10 w-64 max-w-full" />
+            <div className="flex flex-wrap gap-2">
+              <Skeleton className="h-8 w-32 rounded-full" />
+              <Skeleton className="h-8 w-24 rounded-full" />
+            </div>
+          </div>
+          <div className="grid flex-1 gap-0 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
+            <div className="hidden border-r border-black/8 bg-[#f6f8f9] p-5 lg:block">
+              <div className="space-y-4">
+                <Skeleton className="h-8 w-28" />
+                <Skeleton className="h-24 rounded-2xl" />
+                <Skeleton className="h-24 rounded-2xl" />
+              </div>
+            </div>
+            <div className="p-4 sm:p-5 lg:p-6">
+              <Skeleton className="h-[60vh] rounded-[24px]" />
+            </div>
+            <div className="hidden border-l border-black/8 bg-[#f6f8f9] p-5 lg:block">
+              <div className="space-y-4">
+                <Skeleton className="h-8 w-36" />
+                <Skeleton className="h-28 rounded-2xl" />
+                <Skeleton className="h-28 rounded-2xl" />
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     );
@@ -1524,7 +1624,9 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
                   )}
                 >
                   {workflowSaveStatus === "saved"
-                    ? "Saved"
+                    ? lastSavedAt
+                      ? formatRelativeSaveTime(lastSavedAt, saveTimeNow)
+                      : "Saved"
                     : workflowSaveStatus === "saving"
                       ? "Saving..."
                       : workflowSaveStatus === "error"

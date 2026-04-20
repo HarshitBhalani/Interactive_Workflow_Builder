@@ -241,6 +241,29 @@ export async function deleteWorkflowDocument(input: {
   }
 }
 
+export async function renameWorkflowDocument(input: {
+  workflowId: string;
+  name: string;
+  description?: string;
+}): Promise<{ success: true } | { success: false; message: string }> {
+  try {
+    await updateDoc(doc(db, "workflows", input.workflowId), {
+      name: input.name.trim(),
+      description: input.description?.trim() || null,
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      success: true,
+    };
+  } catch {
+    return {
+      success: false,
+      message: "Workflow details could not be updated. Please try again.",
+    };
+  }
+}
+
 export async function getWorkflowDocumentById(input: {
   workflowId: string;
   userId: string;

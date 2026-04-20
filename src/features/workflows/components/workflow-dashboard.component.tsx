@@ -2,12 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type JSX } from "react";
-import { ArrowRight, FolderOpen, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/context/auth.context";
 import { LogoutButton } from "@/features/auth/components/logout-button.component";
-import { deleteWorkflowDocument, getUserWorkflowDocuments } from "@/features/workflows/services/workflow.service";
+import { WorkflowSaveDialog } from "@/features/workflows/components/workflow-save-dialog.component";
+import {
+  deleteWorkflowDocument,
+  getUserWorkflowDocuments,
+  renameWorkflowDocument,
+} from "@/features/workflows/services/workflow.service";
 import type { SavedWorkflowRecord } from "@/features/workflows/types/workflow-doc.type";
 
 function formatWorkflowDate(value: string | null): string {
@@ -28,6 +34,9 @@ export function WorkflowDashboard(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null);
+  const [editingWorkflow, setEditingWorkflow] = useState<SavedWorkflowRecord | null>(null);
+  const [isUpdatingWorkflowMeta, setIsUpdatingWorkflowMeta] = useState(false);
+  const [workflowMetaError, setWorkflowMetaError] = useState("");
 
   useEffect(() => {
     if (!user) {
@@ -89,6 +98,60 @@ export function WorkflowDashboard(): JSX.Element {
     setDeletingWorkflowId(null);
   }
 
+  async function handleRenameWorkflowDetails(
+    name: string,
+    description: string,
+  ): Promise<void> {
+    if (!editingWorkflow) {
+      return;
+    }
+
+    const trimmedName = name.trim();
+    const trimmedDescription = description.trim();
+
+    if (
+      !trimmedName ||
+      (trimmedName === editingWorkflow.name &&
+        trimmedDescription === (editingWorkflow.description ?? ""))
+    ) {
+      setEditingWorkflow(null);
+      setWorkflowMetaError("");
+      return;
+    }
+
+    setIsUpdatingWorkflowMeta(true);
+    setError("");
+    setWorkflowMetaError("");
+
+    const result = await renameWorkflowDocument({
+      workflowId: editingWorkflow.id,
+      name: trimmedName,
+      description: trimmedDescription,
+    });
+
+    if (!result.success) {
+      setWorkflowMetaError(result.message);
+      setIsUpdatingWorkflowMeta(false);
+      return;
+    }
+
+    setWorkflows((currentWorkflows) =>
+      currentWorkflows.map((workflow) =>
+        workflow.id === editingWorkflow.id
+          ? {
+              ...workflow,
+              name: trimmedName,
+              description: trimmedDescription || null,
+              updatedAt: new Date().toISOString(),
+            }
+          : workflow,
+      ),
+    );
+    setIsUpdatingWorkflowMeta(false);
+    setWorkflowMetaError("");
+    setEditingWorkflow(null);
+  }
+
   return (
     <main className="h-screen overflow-hidden bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4">
       <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)]">
@@ -128,13 +191,32 @@ export function WorkflowDashboard(): JSX.Element {
           ) : null}
 
           {isLoading ? (
-            <div className="flex min-h-[18rem] items-center justify-center">
-              <div className="text-center">
-                <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-sky-100 border-t-sky-600" />
-                <p className="mt-4 text-sm font-medium text-slate-600">
-                  Loading your workflows...
-                </p>
-              </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Card
+                  key={`workflow-dashboard-skeleton-${index}`}
+                  className="rounded-[24px] border-slate-200 shadow-sm"
+                >
+                  <CardHeader className="space-y-4">
+                    <div className="space-y-3">
+                      <Skeleton className="h-7 w-40 max-w-full" />
+                      <Skeleton className="h-4 w-52 max-w-full" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                    <div className="flex gap-2">
+                      <Skeleton className="h-7 w-20 rounded-full" />
+                      <Skeleton className="h-7 w-20 rounded-full" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex items-center justify-between gap-3">
+                    <Skeleton className="h-10 w-24 rounded-xl" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-10 w-24 rounded-xl" />
+                      <Skeleton className="h-10 w-24 rounded-xl" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : workflows.length === 0 ? (
             <Card className="rounded-[28px] border-dashed border-slate-300 bg-slate-50/80">
@@ -161,7 +243,21 @@ export function WorkflowDashboard(): JSX.Element {
                 <Card key={workflow.id} className="rounded-[24px] border-slate-200 shadow-sm">
                   <CardHeader className="space-y-3">
                     <div className="space-y-2">
-                      <CardTitle className="line-clamp-1 text-xl">{workflow.name}</CardTitle>
+                      <div className="flex items-start justify-between gap-3">
+                        <CardTitle className="line-clamp-1 text-xl">{workflow.name}</CardTitle>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-xl"
+                          onClick={() => {
+                            setEditingWorkflow(workflow);
+                            setWorkflowMetaError("");
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Edit details
+                        </Button>
+                      </div>
                       {workflow.description ? (
                         <p className="line-clamp-2 text-sm leading-6 text-slate-600">
                           {workflow.description}
@@ -217,6 +313,23 @@ export function WorkflowDashboard(): JSX.Element {
           )}
         </section>
       </div>
+      <WorkflowSaveDialog
+        open={editingWorkflow !== null}
+        defaultName={editingWorkflow?.name ?? ""}
+        defaultDescription={editingWorkflow?.description ?? ""}
+        mode="update"
+        isSaving={isUpdatingWorkflowMeta}
+        error={workflowMetaError}
+        onClose={() => {
+          if (isUpdatingWorkflowMeta) {
+            return;
+          }
+
+          setEditingWorkflow(null);
+          setWorkflowMetaError("");
+        }}
+        onSubmit={(name, description) => void handleRenameWorkflowDetails(name, description)}
+      />
     </main>
   );
 }
