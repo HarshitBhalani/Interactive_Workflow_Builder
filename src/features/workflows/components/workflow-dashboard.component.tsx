@@ -17,6 +17,7 @@ import {
   renameWorkflowDocument,
 } from "@/features/workflows/services/workflow.service";
 import type { SavedWorkflowRecord } from "@/features/workflows/types/workflow-doc.type";
+import type { WorkflowGraphNode, WorkflowSnapshot } from "@/app/modules/Home/types/workflow.type";
 
 function formatWorkflowDate(value: string | null): string {
   if (!value) {
@@ -27,6 +28,164 @@ function formatWorkflowDate(value: string | null): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function getNodePreviewAccent(node: WorkflowGraphNode): string {
+  if (typeof node.data.color === "string" && node.data.color.trim().length > 0) {
+    return node.data.color;
+  }
+
+  switch (node.data.kind) {
+    case "start":
+      return "#10B981";
+    case "action":
+      return "#0EA5E9";
+    case "condition":
+      return "#F59E0B";
+    case "end":
+    default:
+      return "#64748B";
+  }
+}
+
+function WorkflowThumbnail({
+  snapshot,
+  workflowId,
+  workflowName,
+}: {
+  snapshot: WorkflowSnapshot;
+  workflowId: string;
+  workflowName: string;
+}): JSX.Element {
+  const canvasWidth = 260;
+  const canvasHeight = 108;
+  const padding = 14;
+
+  if (snapshot.nodes.length === 0) {
+    return (
+      <div className="flex h-28 items-center justify-center rounded-[22px] border border-dashed border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#f1f5f9_100%)] text-sm text-slate-400">
+        Blank workflow
+      </div>
+    );
+  }
+
+  const nodeRects = snapshot.nodes.map((node) => {
+    const width = node.width ?? 92;
+    const height = node.height ?? 54;
+
+    return {
+      ...node,
+      previewWidth: width,
+      previewHeight: height,
+      minX: node.position.x,
+      minY: node.position.y,
+      centerX: node.position.x + width / 2,
+      centerY: node.position.y + height / 2,
+      accentColor: getNodePreviewAccent(node),
+    };
+  });
+
+  const minX = Math.min(...nodeRects.map((node) => node.minX));
+  const minY = Math.min(...nodeRects.map((node) => node.minY));
+  const maxX = Math.max(...nodeRects.map((node) => node.minX + node.previewWidth));
+  const maxY = Math.max(...nodeRects.map((node) => node.minY + node.previewHeight));
+  const contentWidth = Math.max(maxX - minX, 1);
+  const contentHeight = Math.max(maxY - minY, 1);
+  const scale = Math.min(
+    (canvasWidth - padding * 2) / contentWidth,
+    (canvasHeight - padding * 2) / contentHeight,
+  );
+  const scaledWidth = contentWidth * scale;
+  const scaledHeight = contentHeight * scale;
+  const offsetX = (canvasWidth - scaledWidth) / 2;
+  const offsetY = (canvasHeight - scaledHeight) / 2;
+  const positionsById = new Map(
+    nodeRects.map((node) => [
+      node.id,
+      {
+        x: offsetX + (node.minX - minX) * scale,
+        y: offsetY + (node.minY - minY) * scale,
+        width: Math.max(node.previewWidth * scale, 18),
+        height: Math.max(node.previewHeight * scale, 12),
+        kind: node.data.kind,
+        accentColor: node.accentColor,
+      },
+    ]),
+  );
+
+  const patternId = `workflow-grid-${workflowId}`;
+
+  return (
+    <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#eef4ff_100%)] p-2">
+      <svg
+        viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}
+        className="h-28 w-full"
+        role="img"
+        aria-label={`${workflowName} preview`}
+      >
+        <rect x="0" y="0" width={canvasWidth} height={canvasHeight} rx="18" fill="transparent" />
+        <defs>
+          <pattern id={patternId} width="18" height="18" patternUnits="userSpaceOnUse">
+            <circle cx="1.5" cy="1.5" r="1" fill="#D8E2F1" />
+          </pattern>
+        </defs>
+        <rect x="0" y="0" width={canvasWidth} height={canvasHeight} fill={`url(#${patternId})`} opacity="0.7" />
+        {snapshot.edges.map((edge) => {
+          const source = positionsById.get(edge.source);
+          const target = positionsById.get(edge.target);
+
+          if (!source || !target) {
+            return null;
+          }
+
+          const startX = source.x + source.width;
+          const startY = source.y + source.height / 2;
+          const endX = target.x;
+          const endY = target.y + target.height / 2;
+          const controlOffset = Math.max((endX - startX) * 0.45, 10);
+
+          return (
+            <path
+              key={edge.id}
+              d={`M ${startX} ${startY} C ${startX + controlOffset} ${startY}, ${endX - controlOffset} ${endY}, ${endX} ${endY}`}
+              stroke="#94A3B8"
+              strokeWidth="2"
+              fill="none"
+              strokeLinecap="round"
+            />
+          );
+        })}
+        {nodeRects.map((node) => {
+          const position = positionsById.get(node.id);
+
+          if (!position) {
+            return null;
+          }
+
+          return (
+            <g key={node.id}>
+              <rect
+                x={position.x}
+                y={position.y}
+                width={position.width}
+                height={position.height}
+                rx={Math.min(position.height / 2.2, 12)}
+                fill="white"
+                stroke={position.accentColor}
+                strokeWidth="2"
+              />
+              <circle
+                cx={position.x + 8}
+                cy={position.y + position.height / 2}
+                r="2.6"
+                fill={position.accentColor}
+              />
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
 }
 
 export function WorkflowDashboard(): JSX.Element {
@@ -307,6 +466,11 @@ export function WorkflowDashboard(): JSX.Element {
               {filteredWorkflows.map((workflow) => (
                 <Card key={workflow.id} className="min-w-0 rounded-[24px] border-slate-200 shadow-sm">
                   <CardHeader className="space-y-3">
+                    <WorkflowThumbnail
+                      snapshot={workflow.snapshot}
+                      workflowId={workflow.id}
+                      workflowName={workflow.name}
+                    />
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <CardTitle className="min-w-0 line-clamp-2 text-xl">
