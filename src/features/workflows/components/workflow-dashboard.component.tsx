@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type JSX } from "react";
-import { ArrowRight, FolderOpen, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowRight, FolderOpen, Pencil, Pin, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +15,7 @@ import {
   deleteWorkflowDocument,
   getUserWorkflowDocuments,
   renameWorkflowDocument,
+  setWorkflowPinnedState,
 } from "@/features/workflows/services/workflow.service";
 import type { SavedWorkflowRecord } from "@/features/workflows/types/workflow-doc.type";
 import type { WorkflowGraphNode, WorkflowSnapshot } from "@/app/modules/Home/types/workflow.type";
@@ -199,6 +200,7 @@ export function WorkflowDashboard(): JSX.Element {
   const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null);
   const [editingWorkflow, setEditingWorkflow] = useState<SavedWorkflowRecord | null>(null);
   const [workflowPendingDelete, setWorkflowPendingDelete] = useState<SavedWorkflowRecord | null>(null);
+  const [pinningWorkflowId, setPinningWorkflowId] = useState<string | null>(null);
   const [isUpdatingWorkflowMeta, setIsUpdatingWorkflowMeta] = useState(false);
   const [workflowMetaError, setWorkflowMetaError] = useState("");
   const [workflowDeleteError, setWorkflowDeleteError] = useState("");
@@ -332,6 +334,46 @@ export function WorkflowDashboard(): JSX.Element {
     setWorkflowMetaError("");
     setEditingWorkflow(null);
     toastSuccess("Workflow details updated");
+  }
+
+  async function handleTogglePinnedWorkflow(workflow: SavedWorkflowRecord): Promise<void> {
+    const nextPinnedState = !workflow.isPinned;
+
+    setPinningWorkflowId(workflow.id);
+
+    const result = await setWorkflowPinnedState({
+      workflowId: workflow.id,
+      isPinned: nextPinnedState,
+    });
+
+    if (!result.success) {
+      toastError("Could not update pin", result.message);
+      setPinningWorkflowId(null);
+      return;
+    }
+
+    setWorkflows((currentWorkflows) =>
+      [...currentWorkflows]
+        .map((currentWorkflow) =>
+          currentWorkflow.id === workflow.id
+            ? {
+                ...currentWorkflow,
+                isPinned: nextPinnedState,
+                updatedAt: new Date().toISOString(),
+              }
+            : currentWorkflow,
+        )
+        .sort((firstWorkflow, secondWorkflow) => {
+          if (firstWorkflow.isPinned !== secondWorkflow.isPinned) {
+            return firstWorkflow.isPinned ? -1 : 1;
+          }
+
+          return (secondWorkflow.updatedAt ?? "").localeCompare(firstWorkflow.updatedAt ?? "");
+        }),
+    );
+
+    setPinningWorkflowId(null);
+    toastSuccess(nextPinnedState ? "Workflow pinned" : "Workflow unpinned");
   }
 
   return (
@@ -481,6 +523,22 @@ export function WorkflowDashboard(): JSX.Element {
                             type="button"
                             variant="outline"
                             className="h-10 w-10 rounded-xl px-0"
+                            onClick={() => void handleTogglePinnedWorkflow(workflow)}
+                            disabled={pinningWorkflowId === workflow.id}
+                            aria-label={workflow.isPinned ? `Unpin ${workflow.name}` : `Pin ${workflow.name}`}
+                            title={workflow.isPinned ? "Unpin workflow" : "Pin workflow"}
+                          >
+                            <Pin
+                              className={`h-4 w-4 ${workflow.isPinned ? "fill-slate-950 text-slate-950" : ""}`}
+                            />
+                            <span className="sr-only">
+                              {workflow.isPinned ? "Unpin workflow" : "Pin workflow"}
+                            </span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 w-10 rounded-xl px-0"
                             onClick={() => {
                               setEditingWorkflow(workflow);
                               setWorkflowMetaError("");
@@ -517,6 +575,11 @@ export function WorkflowDashboard(): JSX.Element {
                       </CardDescription>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-500">
+                      {workflow.isPinned ? (
+                        <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                          Pinned
+                        </span>
+                      ) : null}
                       <span className="rounded-full bg-slate-100 px-3 py-1">
                         {workflow.snapshot.nodes.length} nodes
                       </span>

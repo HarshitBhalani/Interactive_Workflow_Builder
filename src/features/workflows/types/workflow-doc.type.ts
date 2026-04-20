@@ -5,6 +5,7 @@ export type SavedWorkflowRecord = {
   userId: string;
   name: string;
   description: string | null;
+  isPinned: boolean;
   snapshot: WorkflowSnapshot;
   createdAt: string | null;
   updatedAt: string | null;

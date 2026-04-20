@@ -160,6 +160,7 @@ function mapWorkflowDocument(
         typeof rawData.description === "string" && rawData.description.trim().length > 0
           ? rawData.description
           : null,
+      isPinned: rawData.isPinned === true,
       snapshot: normalizedSnapshot,
       createdAt: toIsoTimestamp(rawData.createdAt),
       updatedAt: toIsoTimestamp(rawData.updatedAt),
@@ -180,6 +181,7 @@ export async function createWorkflowDocument(
       userId: input.userId,
       name: input.name.trim(),
       description: input.description?.trim() || null,
+      isPinned: false,
       nodes: sanitizedSnapshot.nodes,
       edges: sanitizedSnapshot.edges,
       createdAt: serverTimestamp(),
@@ -264,6 +266,27 @@ export async function renameWorkflowDocument(input: {
   }
 }
 
+export async function setWorkflowPinnedState(input: {
+  workflowId: string;
+  isPinned: boolean;
+}): Promise<{ success: true } | { success: false; message: string }> {
+  try {
+    await updateDoc(doc(db, "workflows", input.workflowId), {
+      isPinned: input.isPinned,
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      success: true,
+    };
+  } catch {
+    return {
+      success: false,
+      message: "Workflow pin state could not be updated. Please try again.",
+    };
+  }
+}
+
 export async function getWorkflowDocumentById(input: {
   workflowId: string;
   userId: string;
@@ -319,9 +342,13 @@ export async function getUserWorkflowDocuments(
     const workflows = workflowSnapshot.docs
       .map((documentSnapshot) => mapWorkflowDocument(documentSnapshot))
       .filter((workflow): workflow is SavedWorkflowRecord => workflow !== null)
-      .sort((firstWorkflow, secondWorkflow) =>
-        (secondWorkflow.updatedAt ?? "").localeCompare(firstWorkflow.updatedAt ?? ""),
-      );
+      .sort((firstWorkflow, secondWorkflow) => {
+        if (firstWorkflow.isPinned !== secondWorkflow.isPinned) {
+          return firstWorkflow.isPinned ? -1 : 1;
+        }
+
+        return (secondWorkflow.updatedAt ?? "").localeCompare(firstWorkflow.updatedAt ?? "");
+      });
 
     return {
       success: true,
