@@ -193,11 +193,11 @@ export function WorkflowDashboard(): JSX.Element {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex flex-col gap-3 sm:flex-row sm:items-center">
             <LogoutButton />
             <Button
               type="button"
-              className="rounded-xl"
+              className="w-full rounded-xl sm:w-auto"
               onClick={() => router.push("/workflows/new")}
             >
               <Plus className="h-4 w-4" />
@@ -305,23 +305,43 @@ export function WorkflowDashboard(): JSX.Element {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredWorkflows.map((workflow) => (
-                <Card key={workflow.id} className="rounded-[24px] border-slate-200 shadow-sm">
+                <Card key={workflow.id} className="min-w-0 rounded-[24px] border-slate-200 shadow-sm">
                   <CardHeader className="space-y-3">
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-3">
-                        <CardTitle className="line-clamp-1 text-xl">{workflow.name}</CardTitle>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="rounded-xl"
-                          onClick={() => {
-                            setEditingWorkflow(workflow);
-                            setWorkflowMetaError("");
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Edit details
-                        </Button>
+                        <CardTitle className="min-w-0 line-clamp-2 text-xl">
+                          {workflow.name}
+                        </CardTitle>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 w-10 rounded-xl px-0"
+                            onClick={() => {
+                              setEditingWorkflow(workflow);
+                              setWorkflowMetaError("");
+                            }}
+                            aria-label={`Edit details for ${workflow.name}`}
+                            title="Edit details"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit details</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 w-10 rounded-xl border-rose-200 px-0 text-rose-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
+                            onClick={() => {
+                              setWorkflowPendingDelete(workflow);
+                              setWorkflowDeleteError("");
+                            }}
+                            aria-label={`Delete ${workflow.name}`}
+                            title="Delete workflow"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </div>
                       </div>
                       {workflow.description ? (
                         <p className="line-clamp-2 text-sm leading-6 text-slate-600">
@@ -341,37 +361,24 @@ export function WorkflowDashboard(): JSX.Element {
                       </span>
                     </div>
                   </CardHeader>
-                  <CardContent className="flex items-center justify-between gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-xl"
-                      onClick={() => router.push(`/workflows/${workflow.id}`)}
-                    >
-                      <FolderOpen className="h-4 w-4" />
-                      Open
-                    </Button>
-                    <div className="flex gap-2">
+                  <CardContent>
+                    <div className="grid w-full grid-cols-2 gap-2">
                       <Button
                         type="button"
-                        className="rounded-xl"
+                        variant="outline"
+                        className="w-full rounded-xl"
+                        onClick={() => router.push(`/workflows/${workflow.id}`)}
+                      >
+                        <FolderOpen className="h-4 w-4" />
+                        Open
+                      </Button>
+                      <Button
+                        type="button"
+                        className="w-full rounded-xl"
                         onClick={() => router.push(`/workflows/${workflow.id}`)}
                       >
                         Edit
                         <ArrowRight className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-xl border-rose-200 text-rose-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
-                        onClick={() => {
-                          setWorkflowPendingDelete(workflow);
-                          setWorkflowDeleteError("");
-                        }}
-                        disabled={deletingWorkflowId === workflow.id}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        {deletingWorkflowId === workflow.id ? "Deleting..." : "Delete"}
                       </Button>
                     </div>
                   </CardContent>
