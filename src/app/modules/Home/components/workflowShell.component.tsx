@@ -386,7 +386,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [mobileAddFeedback, setMobileAddFeedback] = useState<string | null>(null);
   const [isNodeSidebarOpen, setIsNodeSidebarOpen] = useState(true);
-  const [isExecutionLogsOpen, setIsExecutionLogsOpen] = useState(true);
+  const [isExecutionLogsOpen, setIsExecutionLogsOpen] = useState(false);
   const [executionLogsAttentionRunId, setExecutionLogsAttentionRunId] = useState(0);
   const [acknowledgedExecutionLogsRunId, setAcknowledgedExecutionLogsRunId] = useState(0);
   const [showValidationFeedback, setShowValidationFeedback] = useState(false);
@@ -539,10 +539,6 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
 
   useEffect(() => {
     setIsNodeSidebarOpen(!isCompactViewport);
-  }, [isCompactViewport]);
-
-  useEffect(() => {
-    setIsExecutionLogsOpen(!isCompactViewport);
   }, [isCompactViewport]);
 
   useEffect(() => {
