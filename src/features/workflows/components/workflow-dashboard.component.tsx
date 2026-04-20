@@ -253,6 +253,23 @@ export function WorkflowDashboard(): JSX.Element {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
+
   async function handleDeleteWorkflow(workflowId: string): Promise<void> {
     if (!workflowPendingDelete || workflowPendingDelete.id !== workflowId) {
       return;
@@ -377,7 +394,7 @@ export function WorkflowDashboard(): JSX.Element {
   }
 
   return (
-    <main className="h-screen overflow-hidden bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4">
+    <main className="box-border h-dvh overflow-hidden bg-[#edf0f2] px-3 py-3 text-foreground sm:px-6 sm:py-4">
       <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)]">
         <header className="flex flex-col gap-4 border-b border-black/8 px-4 py-5 sm:px-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
@@ -407,7 +424,7 @@ export function WorkflowDashboard(): JSX.Element {
           </div>
         </header>
 
-        <section className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+        <section className="workflow-dashboard-scroll flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           {error ? (
             <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               {error}
