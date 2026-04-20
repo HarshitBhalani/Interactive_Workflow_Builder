@@ -27,6 +27,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/common/utils/cn.util";
 import { useAuth } from "@/features/auth/context/auth.context";
 import { WorkflowSaveDialog } from "@/features/workflows/components/workflow-save-dialog.component";
@@ -109,6 +110,7 @@ type WorkflowClipboardSelection = {
 };
 type WorkflowShellProps = {
   workflowId?: string;
+  template?: "blank" | "approval";
 };
 
 const dragDataKey="application/workflow-node-kind";
@@ -117,6 +119,10 @@ const defaultEditorSnapshot = createWorkflowSnapshot(
   workflowPreviewNodes,
   workflowPreviewEdges,
 );
+const blankEditorSnapshot: WorkflowSnapshot = {
+  nodes: [],
+  edges: [],
+};
 const nodeColorOptions = [
   "#10b981",
   "#0ea5e9",
@@ -288,9 +294,12 @@ function formatRelativeSaveTime(savedAtIso: string, nowTimestamp: number): strin
   return `Saved ${elapsedDays} day${elapsedDays === 1 ? "" : "s"} ago`;
 }
 
-export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
+export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShellProps): JSX.Element {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const { toastError, toastSuccess } = useToast();
+  const routeDefaultSnapshot =
+    template === "blank" ? blankEditorSnapshot : defaultEditorSnapshot;
 
 
   const workflowStore = useWorkflowStore(
@@ -388,8 +397,8 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
   const [currentWorkflowName, setCurrentWorkflowName] = useState("");
   const [currentWorkflowDescription, setCurrentWorkflowDescription] = useState("");
   const [workflowResetSnapshot, setWorkflowResetSnapshot] =
-    useState<WorkflowSnapshot>(defaultEditorSnapshot);
-  const [isWorkflowLoading, setIsWorkflowLoading] = useState(Boolean(workflowId));
+    useState<WorkflowSnapshot>(routeDefaultSnapshot);
+  const [isWorkflowLoading, setIsWorkflowLoading] = useState(true);
   const [workflowLoadError, setWorkflowLoadError] = useState("");
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isSavingWorkflow, setIsSavingWorkflow] = useState(false);
@@ -405,7 +414,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
   const copiedNodeRef = useRef<WorkflowGraphNode | null>(null);
   const copiedSelectionRef = useRef<WorkflowClipboardSelection | null>(null);
   const pasteCountRef = useRef(0);
-  const lastSavedSnapshotKeyRef = useRef(JSON.stringify(defaultEditorSnapshot));
+  const lastSavedSnapshotKeyRef = useRef(JSON.stringify(routeDefaultSnapshot));
 
   const selectedNode =nodeEditor.editingNodeId
     ? (nodes.find((node)=>node.id===nodeEditor.editingNodeId) ?? null) : null;
@@ -583,11 +592,11 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
         setCurrentWorkflowId(null);
         setCurrentWorkflowName("");
         setCurrentWorkflowDescription("");
-        setWorkflowResetSnapshot(defaultEditorSnapshot);
-        lastSavedSnapshotKeyRef.current = JSON.stringify(defaultEditorSnapshot);
+        setWorkflowResetSnapshot(routeDefaultSnapshot);
+        lastSavedSnapshotKeyRef.current = JSON.stringify(routeDefaultSnapshot);
         setWorkflowSaveStatus("unsaved");
         setLastSavedAt(null);
-        loadWorkflowSnapshot(defaultEditorSnapshot);
+        loadWorkflowSnapshot(routeDefaultSnapshot);
         setViewportResetToken((currentToken) => currentToken + 1);
         setIsWorkflowLoading(false);
         return;
@@ -627,7 +636,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
     return () => {
       isCancelled = true;
     };
-  }, [workflowId, user, loading, loadWorkflowSnapshot, resetExecution]);
+  }, [workflowId, user, loading, loadWorkflowSnapshot, resetExecution, routeDefaultSnapshot]);
 
   useEffect(() => {
     if (!currentWorkflowId || !currentWorkflowName || !user || isWorkflowLoading) {
@@ -662,6 +671,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
       if (!result.success) {
         setWorkflowSaveError(result.message);
         setWorkflowSaveStatus("error");
+        toastError("Auto-save failed", result.message);
         setIsSavingWorkflow(false);
         return;
       }
@@ -941,9 +951,9 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
     closeNodeEditor();
     closeJsonModal();
     closeSaveWorkflowDialog();
-    setWorkflowResetSnapshot(defaultEditorSnapshot);
+    setWorkflowResetSnapshot(routeDefaultSnapshot);
     setWorkflowSaveError("");
-    loadWorkflowSnapshot(defaultEditorSnapshot);
+    loadWorkflowSnapshot(routeDefaultSnapshot);
     setViewportResetToken((currentToken) => currentToken + 1);
 
     if (currentWorkflowId) {
@@ -952,9 +962,9 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
       setCurrentWorkflowId(null);
       setCurrentWorkflowName("");
       setCurrentWorkflowDescription("");
-      lastSavedSnapshotKeyRef.current = JSON.stringify(defaultEditorSnapshot);
+      lastSavedSnapshotKeyRef.current = JSON.stringify(routeDefaultSnapshot);
       setWorkflowSaveStatus("unsaved");
-      router.replace("/workflows/new");
+      router.replace(template === "blank" ? "/workflows/new?template=blank" : "/workflows/new");
     }
 
     if (isCompactViewport) {
@@ -963,7 +973,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
         block: "center",
       });
     }
-  },[closeSaveWorkflowDialog, currentWorkflowId, isCompactViewport, loadWorkflowSnapshot, router]);
+  },[closeSaveWorkflowDialog, currentWorkflowId, isCompactViewport, loadWorkflowSnapshot, routeDefaultSnapshot, router, template]);
 
   const handleRunWorkflow=useCallback(():void=>{
     setShowValidationFeedback(true);
@@ -988,6 +998,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
       if (!user) {
         setWorkflowSaveError("You need to be signed in to save workflows.");
         setWorkflowSaveStatus("error");
+        toastError("Save failed", "You need to be signed in to save workflows.");
         return;
       }
 
@@ -1009,6 +1020,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
         if (!result.success) {
           setWorkflowSaveError(result.message);
           setWorkflowSaveStatus("error");
+          toastError("Save failed", result.message);
           setIsSavingWorkflow(false);
           return;
         }
@@ -1022,6 +1034,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
         setLastSavedAt(new Date().toISOString());
         setIsSavingWorkflow(false);
         setIsSaveDialogOpen(false);
+        toastSuccess("Workflow saved", "Your workflow is now available on the dashboard.");
         router.replace(`/workflows/${result.workflowId}`);
         return;
       }
@@ -1037,6 +1050,7 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
       if (!result.success) {
         setWorkflowSaveError(result.message);
         setWorkflowSaveStatus("error");
+        toastError("Save failed", result.message);
         setIsSavingWorkflow(false);
         return;
       }
@@ -1049,8 +1063,9 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps): JSX.Element {
       setLastSavedAt(new Date().toISOString());
       setIsSavingWorkflow(false);
       setIsSaveDialogOpen(false);
+      toastSuccess("Changes saved");
     },
-    [currentWorkflowDescription, currentWorkflowId, edges, nodes, router, user],
+    [currentWorkflowDescription, currentWorkflowId, edges, nodes, router, toastError, toastSuccess, user],
   );
 
   const handlePrimarySaveAction = useCallback((): void => {

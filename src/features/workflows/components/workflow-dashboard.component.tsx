@@ -2,12 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type JSX } from "react";
-import { ArrowRight, FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, FolderOpen, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/context/auth.context";
 import { LogoutButton } from "@/features/auth/components/logout-button.component";
+import { WorkflowDeleteDialog } from "@/features/workflows/components/workflow-delete-dialog.component";
 import { WorkflowSaveDialog } from "@/features/workflows/components/workflow-save-dialog.component";
 import {
   deleteWorkflowDocument,
@@ -30,13 +32,28 @@ function formatWorkflowDate(value: string | null): string {
 export function WorkflowDashboard(): JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
+  const { toastError, toastSuccess } = useToast();
   const [workflows, setWorkflows] = useState<SavedWorkflowRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null);
   const [editingWorkflow, setEditingWorkflow] = useState<SavedWorkflowRecord | null>(null);
+  const [workflowPendingDelete, setWorkflowPendingDelete] = useState<SavedWorkflowRecord | null>(null);
   const [isUpdatingWorkflowMeta, setIsUpdatingWorkflowMeta] = useState(false);
   const [workflowMetaError, setWorkflowMetaError] = useState("");
+  const [workflowDeleteError, setWorkflowDeleteError] = useState("");
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const filteredWorkflows = normalizedSearchTerm
+    ? workflows.filter((workflow) => {
+        const workflowDescription = workflow.description ?? "";
+
+        return (
+          workflow.name.toLowerCase().includes(normalizedSearchTerm) ||
+          workflowDescription.toLowerCase().includes(normalizedSearchTerm)
+        );
+      })
+    : workflows;
 
   useEffect(() => {
     if (!user) {
@@ -58,6 +75,7 @@ export function WorkflowDashboard(): JSX.Element {
 
       if (!result.success) {
         setError(result.message);
+        toastError("Could not load workflows", result.message);
         setWorkflows([]);
         setIsLoading(false);
         return;
@@ -75,19 +93,19 @@ export function WorkflowDashboard(): JSX.Element {
   }, [user]);
 
   async function handleDeleteWorkflow(workflowId: string): Promise<void> {
-    const isConfirmed = window.confirm("Delete this workflow?");
-
-    if (!isConfirmed) {
+    if (!workflowPendingDelete || workflowPendingDelete.id !== workflowId) {
       return;
     }
 
     setDeletingWorkflowId(workflowId);
     setError("");
+    setWorkflowDeleteError("");
 
     const result = await deleteWorkflowDocument({ workflowId });
 
     if (!result.success) {
-      setError(result.message);
+      setWorkflowDeleteError(result.message);
+      toastError("Delete failed", result.message);
       setDeletingWorkflowId(null);
       return;
     }
@@ -96,6 +114,9 @@ export function WorkflowDashboard(): JSX.Element {
       currentWorkflows.filter((workflow) => workflow.id !== workflowId),
     );
     setDeletingWorkflowId(null);
+    setWorkflowDeleteError("");
+    setWorkflowPendingDelete(null);
+    toastSuccess("Workflow deleted", "The workflow was removed from your dashboard.");
   }
 
   async function handleRenameWorkflowDetails(
@@ -131,6 +152,7 @@ export function WorkflowDashboard(): JSX.Element {
 
     if (!result.success) {
       setWorkflowMetaError(result.message);
+      toastError("Could not update workflow", result.message);
       setIsUpdatingWorkflowMeta(false);
       return;
     }
@@ -150,6 +172,7 @@ export function WorkflowDashboard(): JSX.Element {
     setIsUpdatingWorkflowMeta(false);
     setWorkflowMetaError("");
     setEditingWorkflow(null);
+    toastSuccess("Workflow details updated");
   }
 
   return (
@@ -190,6 +213,20 @@ export function WorkflowDashboard(): JSX.Element {
             </div>
           ) : null}
 
+          <div className="mb-4">
+            <label className="relative block" htmlFor="workflow-search">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                id="workflow-search"
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search workflows by name or description"
+                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              />
+            </label>
+          </div>
+
           {isLoading ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
@@ -223,23 +260,51 @@ export function WorkflowDashboard(): JSX.Element {
               <CardHeader className="items-center text-center">
                 <CardTitle>No saved workflows yet</CardTitle>
                 <CardDescription className="text-center">
-                  Start a new workflow and save it to see it here.
+                  Pick a starting point and save your first workflow to see it here.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <Button
+                  type="button"
+                  className="rounded-xl"
+                  onClick={() => router.push("/workflows/new?template=blank")}
+                >
+                  <Plus className="h-4 w-4" />
+                  Start from blank
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => router.push("/workflows/new")}
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  Start from approval flow
+                </Button>
+              </CardContent>
+            </Card>
+          ) : filteredWorkflows.length === 0 ? (
+            <Card className="rounded-[28px] border-dashed border-slate-300 bg-slate-50/80">
+              <CardHeader className="items-center text-center">
+                <CardTitle>No matching workflows</CardTitle>
+                <CardDescription className="text-center">
+                  Try a different name or description search.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex justify-center">
                 <Button
                   type="button"
+                  variant="outline"
                   className="rounded-xl"
-                  onClick={() => router.push("/workflows/new")}
+                  onClick={() => setSearchTerm("")}
                 >
-                  <Plus className="h-4 w-4" />
-                  Create your first workflow
+                  Clear search
                 </Button>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {workflows.map((workflow) => (
+              {filteredWorkflows.map((workflow) => (
                 <Card key={workflow.id} className="rounded-[24px] border-slate-200 shadow-sm">
                   <CardHeader className="space-y-3">
                     <div className="space-y-2">
@@ -299,7 +364,10 @@ export function WorkflowDashboard(): JSX.Element {
                         type="button"
                         variant="outline"
                         className="rounded-xl border-rose-200 text-rose-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
-                        onClick={() => void handleDeleteWorkflow(workflow.id)}
+                        onClick={() => {
+                          setWorkflowPendingDelete(workflow);
+                          setWorkflowDeleteError("");
+                        }}
                         disabled={deletingWorkflowId === workflow.id}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -329,6 +397,27 @@ export function WorkflowDashboard(): JSX.Element {
           setWorkflowMetaError("");
         }}
         onSubmit={(name, description) => void handleRenameWorkflowDetails(name, description)}
+      />
+      <WorkflowDeleteDialog
+        open={workflowPendingDelete !== null}
+        workflowName={workflowPendingDelete?.name ?? "this workflow"}
+        isDeleting={deletingWorkflowId === workflowPendingDelete?.id}
+        error={workflowDeleteError}
+        onClose={() => {
+          if (deletingWorkflowId) {
+            return;
+          }
+
+          setWorkflowPendingDelete(null);
+          setWorkflowDeleteError("");
+        }}
+        onConfirm={() => {
+          if (!workflowPendingDelete) {
+            return;
+          }
+
+          void handleDeleteWorkflow(workflowPendingDelete.id);
+        }}
       />
     </main>
   );
