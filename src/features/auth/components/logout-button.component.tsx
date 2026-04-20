@@ -29,8 +29,8 @@ export function LogoutButton() {
   };
 
   return (
-    <div className="flex items-center gap-4">
-      <span className="text-gray-700">
+    <div className="flex items-center justify-end gap-4">
+      <span className="max-w-[18rem] truncate whitespace-nowrap text-right text-gray-700">
         Welcome, <strong>{user.displayName || user.email}</strong>
       </span>
       <Button

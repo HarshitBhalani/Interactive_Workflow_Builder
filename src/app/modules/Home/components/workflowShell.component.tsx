@@ -1652,10 +1652,10 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end w-full lg:w-auto">
+          <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
             <LogoutButton />
             
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-start">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end sm:items-start">
               <Link
                 href="/dashboard"
                 className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
