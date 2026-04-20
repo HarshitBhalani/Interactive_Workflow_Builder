@@ -391,7 +391,7 @@ export function WorkflowDashboard(): JSX.Element {
               {Array.from({ length: 6 }).map((_, index) => (
                 <Card
                   key={`workflow-dashboard-skeleton-${index}`}
-                  className="rounded-[24px] border-slate-200 shadow-sm"
+                  className="rounded-3xl border-slate-200 shadow-sm"
                 >
                   <CardHeader className="space-y-4">
                     <div className="space-y-3">
@@ -464,7 +464,7 @@ export function WorkflowDashboard(): JSX.Element {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredWorkflows.map((workflow) => (
-                <Card key={workflow.id} className="min-w-0 rounded-[24px] border-slate-200 shadow-sm">
+                <Card key={workflow.id} className="min-w-0 rounded-3xl border-slate-200 shadow-sm">
                   <CardHeader className="space-y-3">
                     <WorkflowThumbnail
                       snapshot={workflow.snapshot}
