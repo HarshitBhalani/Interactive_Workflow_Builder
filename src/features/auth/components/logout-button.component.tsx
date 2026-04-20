@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/context/auth.context";
 import { logoutUser } from "@/features/auth/services/auth.service";
 
-export function LogoutButton() {
+type LogoutButtonProps = {
+  onBeforeLogout?: () => boolean;
+};
+
+export function LogoutButton({ onBeforeLogout }: LogoutButtonProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +21,10 @@ export function LogoutButton() {
   }
 
   const handleLogout = async () => {
+    if (onBeforeLogout && !onBeforeLogout()) {
+      return;
+    }
+
     setIsLoading(true);
 
     const result = await logoutUser();

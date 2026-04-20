@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow"; //bcaz Zustand me object selector use karte time unnecessary re-render avoid karne ke liye
 import type { JSX } from "react";
 import {
@@ -115,6 +115,8 @@ type WorkflowShellProps = {
 
 const dragDataKey="application/workflow-node-kind";
 const workflowAutoSaveDelayMs = 1800;
+const unsavedChangesWarningMessage =
+  "You have unsaved changes. Are you sure you want to leave this workflow?";
 const defaultEditorSnapshot = createWorkflowSnapshot(
   workflowPreviewNodes,
   workflowPreviewEdges,
@@ -415,6 +417,14 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
   const copiedSelectionRef = useRef<WorkflowClipboardSelection | null>(null);
   const pasteCountRef = useRef(0);
   const lastSavedSnapshotKeyRef = useRef(JSON.stringify(routeDefaultSnapshot));
+  const currentSnapshotKey = useMemo(
+    () => JSON.stringify(createWorkflowSnapshot(nodes, edges)),
+    [edges, nodes],
+  );
+  const hasUnsavedChanges =
+    !isWorkflowLoading &&
+    currentSnapshotKey !== lastSavedSnapshotKeyRef.current &&
+    workflowSaveStatus !== "saving";
 
   const selectedNode =nodeEditor.editingNodeId
     ? (nodes.find((node)=>node.id===nodeEditor.editingNodeId) ?? null) : null;
@@ -640,7 +650,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
     }
 
     const snapshot = createWorkflowSnapshot(nodes, edges);
-    const snapshotKey = JSON.stringify(snapshot);
+    const snapshotKey = currentSnapshotKey;
 
     if (snapshotKey === lastSavedSnapshotKeyRef.current) {
       if (workflowSaveStatus !== "saved") {
@@ -682,7 +692,55 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
     return () => {
       window.clearTimeout(timer);
     };
-  }, [currentWorkflowId, currentWorkflowName, currentWorkflowDescription, user, isWorkflowLoading, nodes, edges, workflowSaveStatus]);
+  }, [currentWorkflowId, currentWorkflowName, currentWorkflowDescription, currentSnapshotKey, user, isWorkflowLoading, nodes, edges, workflowSaveStatus, toastError]);
+
+  const confirmDiscardUnsavedChanges = useCallback((): boolean => {
+    if (!hasUnsavedChanges) {
+      return true;
+    }
+
+    return window.confirm(unsavedChangesWarningMessage);
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges || typeof window === "undefined") {
+      return;
+    }
+
+    function handleBeforeUnload(event: BeforeUnloadEvent): void {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges || typeof window === "undefined") {
+      return;
+    }
+
+    const handlePopState = (): void => {
+      if (window.confirm(unsavedChangesWarningMessage)) {
+        window.removeEventListener("popstate", handlePopState);
+        window.history.back();
+        return;
+      }
+
+      window.history.pushState(null, "", window.location.href);
+    };
+
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [hasUnsavedChanges]);
 
   useEffect(() => {
     if (workflowSaveStatus !== "saved" || !lastSavedAt) {
@@ -1562,7 +1620,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
               </div>
             </div>
             <div className="p-4 sm:p-5 lg:p-6">
-              <Skeleton className="h-[60vh] rounded-[24px]" />
+              <Skeleton className="h-[60vh] rounded-3xl" />
             </div>
             <div className="hidden border-l border-black/8 bg-[#f6f8f9] p-5 lg:block">
               <div className="space-y-4">
@@ -1649,12 +1707,19 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
-            <LogoutButton />
+            <LogoutButton onBeforeLogout={confirmDiscardUnsavedChanges} />
             
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end sm:items-start">
               <Link
                 href="/dashboard"
                 className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
+                onClick={(event) => {
+                  if (confirmDiscardUnsavedChanges()) {
+                    return;
+                  }
+
+                  event.preventDefault();
+                }}
               >
                 Dashboard
               </Link>
