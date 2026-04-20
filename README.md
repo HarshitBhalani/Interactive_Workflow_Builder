@@ -2,6 +2,8 @@
 
 A simple visual editor for creating workflows with draggable nodes and connections. The app is designed to make flow building easy to understand, with support for editing nodes, validating connections, and importing or exporting the workflow as JSON. The interface direction is inspired by simple whiteboard-style tools such as Excalidraw, with a clean layout and lightweight visual structure.
 
+The app now also includes authentication, Firestore-backed workflow persistence, a saved workflows dashboard, autosave for existing workflows, and starter workflow templates.
+
 ## Live Preview
 
 - https://interactive-workflow-builder.vercel.app/
@@ -14,6 +16,8 @@ A simple visual editor for creating workflows with draggable nodes and connectio
 - Tailwind CSS 4
 - React Flow
 - Zustand
+- Firebase Authentication
+- Cloud Firestore
 
 ## Approach and design decisions
 
@@ -24,6 +28,20 @@ A simple visual editor for creating workflows with draggable nodes and connectio
 - Chose React Flow as the base for node-based editing.
 - Took light design inspiration from Excalidraw for a clean and approachable canvas feel.
 - Supported four workflow node types: start, action, condition, and end.
+- Added authenticated workflow ownership so each user only sees and edits their own saved flows.
+- Kept first save manual, then enabled debounced autosave for existing workflows to reduce noisy writes.
+
+## Implemented features
+
+- Firebase Authentication for sign up, login, logout, and forgot password.
+- Firestore-backed workflow save, load, update, and delete.
+- Dashboard for listing, searching, opening, renaming, and deleting saved workflows.
+- Manual first save with workflow name and optional description.
+- Debounced autosave for already-saved workflows.
+- Relative save status in the editor header, such as `Saved just now`.
+- Empty-state quick actions to start from a blank workflow or an approval-flow template.
+- Custom delete confirmation modal and toast notifications for key workflow actions.
+- Mobile canvas toolbar controls for cursor, drag, and zoom.
 
 ## State management strategy
 
@@ -32,6 +50,7 @@ A simple visual editor for creating workflows with draggable nodes and connectio
 - Kept UI components lighter by moving workflow logic into the store.
 - Used snapshots for undo and redo history.
 - Reused the same snapshot shape for import and export.
+- Kept Firestore read and write logic outside the Zustand store in a dedicated service layer.
 
 ## Challenges encountered
 
