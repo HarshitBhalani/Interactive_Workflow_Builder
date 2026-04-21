@@ -955,6 +955,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
       await downloadWorkflowCanvasAsPng(
         canvasContainerRef.current,
         getWorkflowDownloadName(),
+        nodes,
       );
       setIsExportMenuOpen(false);
       toastSuccess("PNG downloaded", "The current workflow canvas was saved as an image.");
@@ -980,6 +981,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
       await downloadWorkflowCanvasAsSvg(
         canvasContainerRef.current,
         getWorkflowDownloadName(),
+        nodes,
       );
       setIsExportMenuOpen(false);
       toastSuccess("SVG downloaded", "The current workflow canvas was saved as an SVG file.");
@@ -1005,6 +1007,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
       await downloadWorkflowCanvasAsPdf(
         canvasContainerRef.current,
         getWorkflowDownloadName(),
+        nodes,
       );
       setIsExportMenuOpen(false);
       toastSuccess("PDF downloaded", "The current workflow canvas was saved as a PDF file.");

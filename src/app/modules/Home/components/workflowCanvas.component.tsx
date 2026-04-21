@@ -724,6 +724,7 @@ function WorkflowCanvas({
         />
         {!isCompactViewport ? (
           <div
+            data-export-exclude="true"
             className={cn(
               "absolute left-1/2 top-4 z-10 -translate-x-1/2 items-center gap-1 rounded-2xl border border-slate-200 bg-white/96 p-1 shadow-[0_12px_24px_rgba(15,23,42,0.12)] backdrop-blur",
               shouldWrapToolbar
@@ -845,7 +846,10 @@ function WorkflowCanvas({
             ) : null}
           </div>
         ) : (
-          <div className="absolute left-1/2 top-3 z-10 flex w-[min(calc(100%-1.25rem),16.5rem)] -translate-x-1/2 items-center gap-1 rounded-xl border border-slate-200 bg-white/96 p-1 shadow-[0_12px_24px_rgba(15,23,42,0.12)] backdrop-blur">
+          <div
+            data-export-exclude="true"
+            className="absolute left-1/2 top-3 z-10 flex w-[min(calc(100%-1.25rem),16.5rem)] -translate-x-1/2 items-center gap-1 rounded-xl border border-slate-200 bg-white/96 p-1 shadow-[0_12px_24px_rgba(15,23,42,0.12)] backdrop-blur"
+          >
             <button
               type="button"
               aria-label="Selection mode"
@@ -888,7 +892,10 @@ function WorkflowCanvas({
             </button>
           </div>
         )}
-        <div className="absolute bottom-4 left-4 z-10 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_24px_rgba(15,23,42,0.12)]">
+        <div
+          data-export-exclude="true"
+          className="absolute bottom-4 left-4 z-10 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_24px_rgba(15,23,42,0.12)]"
+        >
           <button
             type="button"
             aria-label="Zoom in"
@@ -918,7 +925,10 @@ function WorkflowCanvas({
           </button>
         </div>
         {!hideCanvasActions ? (
-          <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_24px_rgba(15,23,42,0.12)]">
+          <div
+            data-export-exclude="true"
+            className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_24px_rgba(15,23,42,0.12)]"
+          >
             <button
               type="button"
               aria-label="Undo"
@@ -953,6 +963,7 @@ function WorkflowCanvas({
         {!isCompactViewport ? (
           <>
             <button
+              data-export-exclude="true"
               type="button"
               aria-label={isMiniMapVisible ? "Hide minimap" : "Show minimap"}
               title={isMiniMapVisible ? "Hide minimap" : "Show minimap"}
@@ -970,6 +981,7 @@ function WorkflowCanvas({
             </button>
             {isMiniMapVisible ? (
               <div
+                data-export-exclude="true"
                 className="absolute bottom-4 right-4 overflow-hidden rounded-[16px]"
                 style={{
                   width: miniMapWidth,
