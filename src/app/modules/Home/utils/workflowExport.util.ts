@@ -110,8 +110,8 @@ function createWorkflowExportClone(
   exportHostElement.style.height = `${exportHeight}px`;
   exportHostElement.style.overflow = "hidden";
   exportHostElement.style.pointerEvents = "none";
-  exportHostElement.style.opacity = "0";
   exportHostElement.style.background = exportBackgroundColor;
+  exportHostElement.style.zIndex = "-1";
 
   clonedCanvasElement.style.width = `${exportWidth}px`;
   clonedCanvasElement.style.height = `${exportHeight}px`;
