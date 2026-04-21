@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type JSX } from "react";
-import { ArrowRight, FolderOpen, Pencil, Pin, Plus, Search, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, type JSX } from "react";
+import { ArrowRight, FolderOpen, LayoutGrid, List, Pencil, Pin, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +19,8 @@ import {
 } from "@/features/workflows/services/workflow.service";
 import type { SavedWorkflowRecord } from "@/features/workflows/types/workflow-doc.type";
 import type { WorkflowGraphNode, WorkflowSnapshot } from "@/app/modules/Home/types/workflow.type";
+
+type WorkflowViewMode = "grid" | "list";
 
 function formatWorkflowDate(value: string | null): string {
   if (!value) {
@@ -193,10 +195,12 @@ export function WorkflowDashboard(): JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
   const { toastError, toastSuccess } = useToast();
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [workflows, setWorkflows] = useState<SavedWorkflowRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<WorkflowViewMode>("grid");
   const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null);
   const [editingWorkflow, setEditingWorkflow] = useState<SavedWorkflowRecord | null>(null);
   const [workflowPendingDelete, setWorkflowPendingDelete] = useState<SavedWorkflowRecord | null>(null);
@@ -251,7 +255,31 @@ export function WorkflowDashboard(): JSX.Element {
     return () => {
       isCancelled = true;
     };
-  }, [user]);
+  }, [toastError, user]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+
+    function syncMobileView(event?: MediaQueryListEvent): void {
+      const isMobileViewport = event?.matches ?? mediaQuery.matches;
+
+      if (isMobileViewport) {
+        setViewMode("grid");
+      }
+    }
+
+    syncMobileView();
+
+    mediaQuery.addEventListener("change", syncMobileView);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncMobileView);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -267,6 +295,26 @@ export function WorkflowDashboard(): JSX.Element {
     return () => {
       document.body.style.overflow = previousBodyOverflow;
       document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      const isSearchShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
+
+      if (!isSearchShortcut) {
+        return;
+      }
+
+      event.preventDefault();
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
@@ -431,18 +479,46 @@ export function WorkflowDashboard(): JSX.Element {
             </div>
           ) : null}
 
-          <div className="mb-4">
-            <label className="relative block" htmlFor="workflow-search">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <label className="relative block flex-1" htmlFor="workflow-search">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
+                ref={searchInputRef}
                 id="workflow-search"
                 type="search"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Search workflows by name or description"
-                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-24 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
               />
+              <span className="pointer-events-none absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium tracking-wide text-slate-500 shadow-sm">
+                Ctrl K
+              </span>
             </label>
+            <div className="hidden items-center rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:inline-flex">
+              <Button
+                type="button"
+                size="icon"
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                className="h-10 w-10 rounded-xl"
+                onClick={() => setViewMode("grid")}
+                aria-label="Show workflows in grid view"
+                title="Grid view"
+              >
+                <LayoutGrid className="h-4.5 w-4.5" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                className="h-10 w-10 rounded-xl"
+                onClick={() => setViewMode("list")}
+                aria-label="Show workflows in list view"
+                title="List view"
+              >
+                <List className="h-4.5 w-4.5" />
+              </Button>
+            </div>
           </div>
 
           {isLoading ? (
@@ -520,7 +596,7 @@ export function WorkflowDashboard(): JSX.Element {
                 </Button>
               </CardContent>
             </Card>
-          ) : (
+          ) : viewMode === "grid" ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredWorkflows.map((workflow) => (
                 <Card key={workflow.id} className="min-w-0 rounded-3xl border-slate-200 shadow-sm">
@@ -624,6 +700,115 @@ export function WorkflowDashboard(): JSX.Element {
                         Edit
                         <ArrowRight className="h-4 w-4" />
                       </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {filteredWorkflows.map((workflow) => (
+                <Card
+                  key={workflow.id}
+                  className="rounded-[28px] border-slate-200 shadow-sm"
+                >
+                  <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5">
+                    <div className="w-full shrink-0 sm:w-72">
+                      <WorkflowThumbnail
+                        snapshot={workflow.snapshot}
+                        workflowId={workflow.id}
+                        workflowName={workflow.name}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-3">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="min-w-0 text-xl font-semibold text-slate-950">
+                              {workflow.name}
+                            </h2>
+                            {workflow.isPinned ? (
+                              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                                Pinned
+                              </span>
+                            ) : null}
+                          </div>
+                          {workflow.description ? (
+                            <p className="line-clamp-2 text-sm leading-6 text-slate-600">
+                              {workflow.description}
+                            </p>
+                          ) : null}
+                          <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-500">
+                            <span className="rounded-full bg-slate-100 px-3 py-1">
+                              Updated {formatWorkflowDate(workflow.updatedAt)}
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-3 py-1">
+                              {workflow.snapshot.nodes.length} nodes
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-3 py-1">
+                              {workflow.snapshot.edges.length} links
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 w-10 rounded-xl px-0"
+                            onClick={() => void handleTogglePinnedWorkflow(workflow)}
+                            disabled={pinningWorkflowId === workflow.id}
+                            aria-label={workflow.isPinned ? `Unpin ${workflow.name}` : `Pin ${workflow.name}`}
+                            title={workflow.isPinned ? "Unpin workflow" : "Pin workflow"}
+                          >
+                            <Pin
+                              className={`h-4 w-4 ${workflow.isPinned ? "fill-slate-950 text-slate-950" : ""}`}
+                            />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 w-10 rounded-xl px-0"
+                            onClick={() => {
+                              setEditingWorkflow(workflow);
+                              setWorkflowMetaError("");
+                            }}
+                            aria-label={`Edit details for ${workflow.name}`}
+                            title="Edit details"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 w-10 rounded-xl border-rose-200 px-0 text-rose-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
+                            onClick={() => {
+                              setWorkflowPendingDelete(workflow);
+                              setWorkflowDeleteError("");
+                            }}
+                            aria-label={`Delete ${workflow.name}`}
+                            title="Delete workflow"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-xl"
+                            onClick={() => router.push(`/workflows/${workflow.id}`)}
+                          >
+                            <FolderOpen className="h-4 w-4" />
+                            Open
+                          </Button>
+                          <Button
+                            type="button"
+                            className="rounded-xl"
+                            onClick={() => router.push(`/workflows/${workflow.id}`)}
+                          >
+                            Edit
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

@@ -8,8 +8,11 @@ import type { JSX } from "react";
 import {
   ChevronDown,
   ChevronUp,
+  Download,
+  FileDown,
   PanelLeftClose,
   PanelRightClose,
+  ImageDown,
 } from "lucide-react";
 import type {
   Connection,
@@ -58,6 +61,12 @@ import {
   createWorkflowSnapshot,
   parseWorkflowSnapshot,
 } from "../utils/workflowPersistence.util";
+import {
+  downloadWorkflowCanvasAsPng,
+  downloadWorkflowCanvasAsPdf,
+  downloadWorkflowCanvasAsSvg,
+  downloadWorkflowSnapshotAsJson,
+} from "../utils/workflowExport.util";
 import {
   getDefaultWorkflowNodeShape,
   workflowNodeAppearanceByKind,
@@ -404,6 +413,10 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
   const [workflowLoadError, setWorkflowLoadError] = useState("");
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isSavingWorkflow, setIsSavingWorkflow] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isExportingPng, setIsExportingPng] = useState(false);
+  const [isExportingSvg, setIsExportingSvg] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [workflowSaveError, setWorkflowSaveError] = useState("");
   const [workflowSaveStatus, setWorkflowSaveStatus] = useState<
     "unsaved" | "saving" | "saved" | "error"
@@ -413,6 +426,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
 
 
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const exportMenuRef = useRef<HTMLDivElement | null>(null);
   const copiedNodeRef = useRef<WorkflowGraphNode | null>(null);
   const copiedSelectionRef = useRef<WorkflowClipboardSelection | null>(null);
   const pasteCountRef = useRef(0);
@@ -528,6 +542,24 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
   }));
 
   const validateConnection: IsValidConnection = (connection) => isValidWorkflowConnection(connection, nodes, edges);
+
+  useEffect(() => {
+    if (!isExportMenuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent): void {
+      if (!exportMenuRef.current?.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isExportMenuOpen]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -897,6 +929,93 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
 
   function handleConnect(connection: Connection): void {
     connectNodes(connection);
+  }
+
+  function getWorkflowDownloadName(): string {
+    return currentWorkflowName || "workflow";
+  }
+
+  function handleDownloadJson(): void {
+    const snapshot = createWorkflowSnapshot(nodes, edges);
+
+    downloadWorkflowSnapshotAsJson(snapshot, getWorkflowDownloadName());
+    setIsExportMenuOpen(false);
+    toastSuccess("JSON downloaded", "The workflow snapshot was saved as a JSON file.");
+  }
+
+  async function handleDownloadPng(): Promise<void> {
+    if (!canvasContainerRef.current) {
+      toastError("PNG export failed", "The workflow canvas is not ready yet.");
+      return;
+    }
+
+    setIsExportingPng(true);
+
+    try {
+      await downloadWorkflowCanvasAsPng(
+        canvasContainerRef.current,
+        getWorkflowDownloadName(),
+      );
+      setIsExportMenuOpen(false);
+      toastSuccess("PNG downloaded", "The current workflow canvas was saved as an image.");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Could not export the workflow as PNG.";
+
+      toastError("PNG export failed", errorMessage);
+    } finally {
+      setIsExportingPng(false);
+    }
+  }
+
+  async function handleDownloadSvg(): Promise<void> {
+    if (!canvasContainerRef.current) {
+      toastError("SVG export failed", "The workflow canvas is not ready yet.");
+      return;
+    }
+
+    setIsExportingSvg(true);
+
+    try {
+      await downloadWorkflowCanvasAsSvg(
+        canvasContainerRef.current,
+        getWorkflowDownloadName(),
+      );
+      setIsExportMenuOpen(false);
+      toastSuccess("SVG downloaded", "The current workflow canvas was saved as an SVG file.");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Could not export the workflow as SVG.";
+
+      toastError("SVG export failed", errorMessage);
+    } finally {
+      setIsExportingSvg(false);
+    }
+  }
+
+  async function handleDownloadPdf(): Promise<void> {
+    if (!canvasContainerRef.current) {
+      toastError("PDF export failed", "The workflow canvas is not ready yet.");
+      return;
+    }
+
+    setIsExportingPdf(true);
+
+    try {
+      await downloadWorkflowCanvasAsPdf(
+        canvasContainerRef.current,
+        getWorkflowDownloadName(),
+      );
+      setIsExportMenuOpen(false);
+      toastSuccess("PDF downloaded", "The current workflow canvas was saved as a PDF file.");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Could not export the workflow as PDF.";
+
+      toastError("PDF export failed", errorMessage);
+    } finally {
+      setIsExportingPdf(false);
+    }
   }
 
   function getLogCardClassName(log:WorkflowExecutionLog):string 
@@ -1727,10 +1846,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
               <Button
                 type="button"
                 onClick={handlePrimarySaveAction}
-                className="w-full sm:w-auto"
-              >
-                Save
-              </Button>
+                className="w-full sm:w-auto">Save</Button>
 
               <Button
                 variant="outline"
@@ -1741,14 +1857,64 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                 Import JSON
               </Button>
 
-              <Button
-                variant="outline"
-                type="button"
-                onClick={openExportModal}
-                className="w-full sm:w-auto"
-              >
-                Export JSON
-              </Button>
+              <div ref={exportMenuRef} className="relative w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsExportMenuOpen((currentState) => !currentState)}
+                  className="w-full sm:w-auto"
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", isExportMenuOpen ? "rotate-180" : "")} />
+                </Button>
+
+                {isExportMenuOpen ? (
+                  <div className="absolute right-0 top-[calc(100%+0.5rem)] z-30 min-w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_18px_36px_rgba(15,23,42,0.14)]">
+                    <button
+                      type="button"
+                      onClick={handleDownloadJson}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>Download JSON</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleDownloadPng();
+                      }}
+                      disabled={isExportingPng}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-white"
+                    >
+                      <ImageDown className="h-4 w-4" />
+                      <span>{isExportingPng ? "Exporting PNG..." : "Export PNG"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleDownloadSvg();
+                      }}
+                      disabled={isExportingSvg}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-white"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>{isExportingSvg ? "Exporting SVG..." : "Export SVG"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleDownloadPdf();
+                      }}
+                      disabled={isExportingPdf}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-white"
+                    >
+                      <FileDown className="h-4 w-4" />
+                      <span>{isExportingPdf ? "Exporting PDF..." : "Export PDF"}</span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
 
               <div className="col-span-2 hidden flex-col gap-2 sm:col-span-1 sm:flex">
                 <Button
