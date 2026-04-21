@@ -3,7 +3,7 @@ import { toPng, toSvg } from "html-to-image";
 import type { WorkflowGraphNode, WorkflowNodeShape, WorkflowSnapshot } from "../types/workflow.type";
 
 const exportBackgroundColor = "#fbfcfd";
-const exportPaddingPx = 10;
+const exportPaddingPx = 20;
 const exportPixelRatio = 2;
 const exportCleanupSelector = [
   '[data-export-exclude="true"]',
