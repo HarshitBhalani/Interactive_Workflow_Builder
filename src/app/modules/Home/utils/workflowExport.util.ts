@@ -136,7 +136,7 @@ function createWorkflowExportClone(
     cleanup: () => {
       exportHostElement.remove();
     },
-    exportElement: exportHostElement,
+    exportElement: clonedCanvasElement,
     height: exportHeight,
     width: exportWidth,
   };
