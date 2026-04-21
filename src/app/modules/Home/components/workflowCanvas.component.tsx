@@ -433,7 +433,11 @@ function getCanvasNodeBounds(node: WorkflowCanvasNode): {
 }
 
 function getMiniMapNodeColor(node: WorkflowCanvasNode): string {
-  return workflowNodeAppearanceByKind[node.data.kind]?.minimapColor ?? "#64748b";
+  return (
+    node.data.color ??
+    workflowNodeAppearanceByKind[node.data.kind]?.minimapColor ??
+    "#64748b"
+  );
 }
 
 function WorkflowMiniMapGroupsOverlay({

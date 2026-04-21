@@ -3,6 +3,7 @@ import type { WorkflowNodeKind, WorkflowNodeShape, WorkflowSnapshot } from "./wo
 export type GeneratedWorkflowNode = {
   id: string;
   kind: WorkflowNodeKind;
+  originalId?: string;
   title: string;
   subtitle: string;
   shape?: WorkflowNodeShape;

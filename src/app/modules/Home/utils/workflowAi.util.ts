@@ -1,4 +1,4 @@
-import { MarkerType } from "reactflow";
+import type { MarkerType } from "reactflow";
 import type {
   WorkflowGraphEdge,
   WorkflowGraphNode,
@@ -20,6 +20,7 @@ const verticalSpacingPx = 220;
 const initialCanvasX = 120;
 const initialCanvasY = 80;
 const maxGeneratedNodes = 12;
+const arrowClosedMarkerType: MarkerType = "arrowclosed" as MarkerType;
 
 const allowedNodeKinds: WorkflowNodeKind[] = ["start", "action", "condition", "end"];
 const yesLabels = new Set(["yes", "approved", "true", "pass"]);
@@ -53,10 +54,6 @@ function sanitizeText(value: unknown, fallbackValue: string): string {
 
   const trimmedValue = value.trim();
   return trimmedValue.length > 0 ? trimmedValue : fallbackValue;
-}
-
-function sanitizeColor(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
 function normalizeGeneratedShape(kind: WorkflowNodeKind, shape: unknown): WorkflowNodeShape {
@@ -132,8 +129,11 @@ function getSourceHandleFromLabel(label?: string): "yes" | "no" | undefined {
   return label === "Yes" ? "yes" : label === "No" ? "no" : undefined;
 }
 
-function buildGeneratedEdgeAppearance(label?: string): Partial<WorkflowGraphEdge> {
-  const sourceHandle = getSourceHandleFromLabel(label);
+function buildGeneratedEdgeAppearance(
+  label: string | undefined,
+  allowBranchHandle: boolean,
+): Partial<WorkflowGraphEdge> {
+  const sourceHandle = allowBranchHandle ? getSourceHandleFromLabel(label) : undefined;
   const strokeColor =
     sourceHandle === "yes"
       ? "#16a34a"
@@ -150,7 +150,7 @@ function buildGeneratedEdgeAppearance(label?: string): Partial<WorkflowGraphEdge
         }
       : undefined,
     markerEnd: {
-      type: MarkerType.ArrowClosed,
+      type: arrowClosedMarkerType,
       color: strokeColor,
     },
     sourceHandle,
@@ -226,10 +226,14 @@ function normalizeGeneratedNodes(value: unknown): GeneratedWorkflowNode[] {
         usedNodeIds,
       ),
       kind,
+      originalId:
+        typeof nodeValue.id === "string" && nodeValue.id.trim().length > 0
+          ? nodeValue.id.trim()
+          : `${kind}-${index + 1}`,
       title,
       subtitle: sanitizeText(nodeValue.subtitle, "Add a short description"),
       shape: normalizeGeneratedShape(kind, nodeValue.shape),
-      color: sanitizeColor(nodeValue.color),
+      color: null,
     };
   });
 }
@@ -242,7 +246,13 @@ function normalizeGeneratedEdges(
     return [];
   }
 
-  const nodeIds = new Set(nodes.map((node) => node.id));
+  const nodeIdMap = new Map<string, string>();
+  nodes.forEach((node) => {
+    nodeIdMap.set(node.id, node.id);
+    if (node.originalId) {
+      nodeIdMap.set(node.originalId, node.id);
+    }
+  });
   const normalizedEdges: GeneratedWorkflowEdge[] = [];
   const seenEdges = new Set<string>();
 
@@ -251,10 +261,12 @@ function normalizeGeneratedEdges(
       continue;
     }
 
-    const source = typeof edgeValue.source === "string" ? edgeValue.source.trim() : "";
-    const target = typeof edgeValue.target === "string" ? edgeValue.target.trim() : "";
+    const rawSource = typeof edgeValue.source === "string" ? edgeValue.source.trim() : "";
+    const rawTarget = typeof edgeValue.target === "string" ? edgeValue.target.trim() : "";
+    const source = nodeIdMap.get(rawSource) ?? "";
+    const target = nodeIdMap.get(rawTarget) ?? "";
 
-    if (!nodeIds.has(source) || !nodeIds.has(target) || source === target) {
+    if (!source || !target || source === target) {
       continue;
     }
 
@@ -333,6 +345,28 @@ function ensureConditionBranchLabels(
   }
 
   return normalizedEdges;
+}
+
+function promoteBranchingNodesToConditions(
+  nodes: GeneratedWorkflowNode[],
+  edges: GeneratedWorkflowEdge[],
+): GeneratedWorkflowNode[] {
+  return nodes.map((node) => {
+    const outgoingEdges = edges.filter((edge) => edge.source === node.id);
+    const hasDecisionBranches = outgoingEdges.some(
+      (edge) => edge.label === "Yes" || edge.label === "No",
+    );
+
+    if (!hasDecisionBranches || node.kind === "condition") {
+      return node;
+    }
+
+    return {
+      ...node,
+      kind: "condition",
+      shape: "diamond",
+    };
+  });
 }
 
 function buildNodeDepthMap(
@@ -461,10 +495,14 @@ export function parseGeneratedWorkflowDefinition(
     throw new Error("The AI response was not a valid workflow object.");
   }
 
-  const normalizedNodes = ensureWorkflowEndpoints(normalizeGeneratedNodes(value.nodes));
+  const initialNodes = ensureWorkflowEndpoints(normalizeGeneratedNodes(value.nodes));
   const normalizedEdges = ensureConditionBranchLabels(
-    normalizedNodes,
-    normalizeGeneratedEdges(value.edges, normalizedNodes),
+    initialNodes,
+    normalizeGeneratedEdges(value.edges, initialNodes),
+  );
+  const normalizedNodes = promoteBranchingNodesToConditions(
+    initialNodes,
+    normalizedEdges,
   );
 
   return {
@@ -513,6 +551,9 @@ export function buildGeneratedWorkflowResult(
   );
 
   const usedEdgeIds = new Set<string>();
+  const nodeKindMap = new Map(
+    workflowDefinition.nodes.map((node) => [node.id, node.kind] as const),
+  );
   const edges: WorkflowGraphEdge[] = workflowDefinition.edges.map((edge) => {
     const label = normalizeBranchLabel(edge.label);
     const sourceHandle = getSourceHandleFromLabel(label);
@@ -526,7 +567,10 @@ export function buildGeneratedWorkflowResult(
       source: edge.source,
       target: edge.target,
       selected: false,
-      ...buildGeneratedEdgeAppearance(label),
+      ...buildGeneratedEdgeAppearance(
+        label,
+        nodeKindMap.get(edge.source) === "condition",
+      ),
     };
   });
 

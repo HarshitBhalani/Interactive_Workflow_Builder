@@ -981,10 +981,6 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
       return;
     }
 
-    if (!confirmDiscardUnsavedChanges()) {
-      return;
-    }
-
     setAiGenerationState((currentState) => ({
       ...currentState,
       error: "",
@@ -1001,13 +997,24 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
           prompt: trimmedPrompt,
         }),
       });
-      const payload = (await response.json()) as
+      const responseText = await response.text();
+      let payload:
         | {
             message?: string;
             success?: boolean;
             workflow?: GeneratedWorkflowResult;
           }
         | undefined;
+
+      try {
+        payload = JSON.parse(responseText) as typeof payload;
+      } catch {
+        throw new Error(
+          response.ok
+            ? "The server returned an unexpected response."
+            : "The AI route failed before returning JSON. Check the server console for the real error.",
+        );
+      }
 
       if (!response.ok || !payload?.success || !payload.workflow) {
         throw new Error(
@@ -1020,8 +1027,8 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
       closeJsonModal();
       setShowValidationFeedback(false);
       loadWorkflowSnapshot(payload.workflow.snapshot);
-      setCurrentWorkflowName(payload.workflow.title);
-      setCurrentWorkflowDescription(payload.workflow.description);
+      setCurrentWorkflowName("");
+      setCurrentWorkflowDescription("");
       setWorkflowSaveStatus("unsaved");
       setLastSavedAt(null);
       setViewportResetToken((currentToken) => currentToken + 1);
