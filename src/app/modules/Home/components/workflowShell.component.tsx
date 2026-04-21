@@ -10,6 +10,7 @@ import {
   ChevronUp,
   Download,
   FileDown,
+  Sparkles,
   PanelLeftClose,
   PanelRightClose,
   ImageDown,
@@ -57,6 +58,7 @@ import type {
   WorkflowNodeTemplate,
   WorkflowSnapshot,
 } from "../types/workflow.type";
+import type { GeneratedWorkflowResult } from "../types/workflowAi.type";
 import {
   createWorkflowSnapshot,
   parseWorkflowSnapshot,
@@ -80,6 +82,13 @@ import WorkflowCanvas from "./workflowCanvas.component";
 import { WorkflowHeading } from "./workflowHeading.component";
 
 type JsonModalMode = "export" | "import" | null;
+
+type AiGenerationState = {
+  error: string;
+  isOpen: boolean;
+  isSubmitting: boolean;
+  prompt: string;
+};
 
 type NodeEditorState ={
   editingNodeId:string | null;
@@ -417,6 +426,12 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [isExportingSvg, setIsExportingSvg] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [aiGenerationState, setAiGenerationState] = useState<AiGenerationState>({
+    error: "",
+    isOpen: false,
+    isSubmitting: false,
+    prompt: "",
+  });
   const [workflowSaveError, setWorkflowSaveError] = useState("");
   const [workflowSaveStatus, setWorkflowSaveStatus] = useState<
     "unsaved" | "saving" | "saved" | "error"
@@ -912,6 +927,26 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
     });
   }
 
+  function openAiGenerationModal(): void {
+    setAiGenerationState((currentState) => ({
+      ...currentState,
+      error: "",
+      isOpen: true,
+    }));
+  }
+
+  function closeAiGenerationModal(): void {
+    setAiGenerationState((currentState) =>
+      currentState.isSubmitting
+        ? currentState
+        : {
+            ...currentState,
+            error: "",
+            isOpen: false,
+          },
+    );
+  }
+
   function openSaveWorkflowDialog(): void {
     setWorkflowSaveError("");
     setIsSaveDialogOpen(true);
@@ -933,6 +968,83 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
 
   function getWorkflowDownloadName(): string {
     return currentWorkflowName || "workflow";
+  }
+
+  async function handleGenerateWorkflowFromPrompt(): Promise<void> {
+    const trimmedPrompt = aiGenerationState.prompt.trim();
+
+    if (!trimmedPrompt) {
+      setAiGenerationState((currentState) => ({
+        ...currentState,
+        error: "Enter a prompt before generating a workflow.",
+      }));
+      return;
+    }
+
+    if (!confirmDiscardUnsavedChanges()) {
+      return;
+    }
+
+    setAiGenerationState((currentState) => ({
+      ...currentState,
+      error: "",
+      isSubmitting: true,
+    }));
+
+    try {
+      const response = await fetch("/api/workflow/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: trimmedPrompt,
+        }),
+      });
+      const payload = (await response.json()) as
+        | {
+            message?: string;
+            success?: boolean;
+            workflow?: GeneratedWorkflowResult;
+          }
+        | undefined;
+
+      if (!response.ok || !payload?.success || !payload.workflow) {
+        throw new Error(
+          payload?.message ?? "The AI workflow could not be generated.",
+        );
+      }
+
+      resetExecution();
+      closeNodeEditor();
+      closeJsonModal();
+      setShowValidationFeedback(false);
+      loadWorkflowSnapshot(payload.workflow.snapshot);
+      setCurrentWorkflowName(payload.workflow.title);
+      setCurrentWorkflowDescription(payload.workflow.description);
+      setWorkflowSaveStatus("unsaved");
+      setLastSavedAt(null);
+      setViewportResetToken((currentToken) => currentToken + 1);
+      setAiGenerationState({
+        error: "",
+        isOpen: false,
+        isSubmitting: false,
+        prompt: trimmedPrompt,
+      });
+      toastSuccess(
+        "Workflow generated",
+        "The AI created a new workflow on the canvas.",
+      );
+    } catch (error) {
+      setAiGenerationState((currentState) => ({
+        ...currentState,
+        error:
+          error instanceof Error
+            ? error.message
+            : "The AI workflow could not be generated.",
+        isSubmitting: false,
+      }));
+    }
   }
 
   function handleDownloadJson(): void {
@@ -1854,6 +1966,16 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
               <Button
                 variant="outline"
                 type="button"
+                onClick={openAiGenerationModal}
+                className="w-full sm:w-auto"
+              >
+                <Sparkles className="h-4 w-4" />
+                AI Generate
+              </Button>
+
+              <Button
+                variant="outline"
+                type="button"
                 onClick={openImportModal}
                 className="w-full sm:w-auto"
               >
@@ -2507,6 +2629,68 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                   Load Workflow
                 </Button>
               ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {aiGenerationState.isOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 px-0 sm:items-center sm:px-4">
+          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.2)] sm:max-h-[calc(100vh-2rem)] sm:max-w-2xl sm:rounded-2xl">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-950">
+                Generate workflow with AI
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Describe the workflow in plain English and the app will build a starting flow for you.
+              </p>
+            </div>
+
+            <div className="space-y-4 px-5 py-5">
+              <textarea
+                value={aiGenerationState.prompt}
+                onChange={(event) =>
+                  setAiGenerationState((currentState) => ({
+                    ...currentState,
+                    error: "",
+                    prompt: event.target.value,
+                  }))
+                }
+                rows={8}
+                placeholder="Example: Create a leave approval workflow where the employee submits a request, the manager reviews it, approved requests go to HR, and rejected ones go back for correction."
+                className="min-h-52 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 sm:resize-none"
+              />
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                Keep prompts specific. Mention who starts the workflow, where decisions happen, and what each branch should do.
+              </div>
+
+              {aiGenerationState.error ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {aiGenerationState.error}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={closeAiGenerationModal}
+                disabled={aiGenerationState.isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  void handleGenerateWorkflowFromPrompt();
+                }}
+                disabled={aiGenerationState.isSubmitting}
+              >
+                <Sparkles className="h-4 w-4" />
+                {aiGenerationState.isSubmitting ? "Generating..." : "Generate workflow"}
+              </Button>
             </div>
           </div>
         </div>
