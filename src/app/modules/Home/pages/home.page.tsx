@@ -1,9 +1,10 @@
 import { WorkflowShell } from "../components/workflowShell.component";
 import type { JSX } from "react";
+import type { WorkflowTemplateId } from "@/features/workflows/configs/workflow-template.config";
 
 type HomePageProps = {
   workflowId?: string;
-  template?: "blank" | "approval";
+  template?: WorkflowTemplateId;
 };
 
 export function HomePage({ workflowId, template }: HomePageProps): JSX.Element {
