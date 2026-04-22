@@ -14,6 +14,8 @@ import {
   PanelLeftClose,
   PanelRightClose,
   ImageDown,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import type {
   Connection,
@@ -404,6 +406,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
   });
   const [viewportResetToken, setViewportResetToken] = useState(0);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [isCanvasExpanded, setIsCanvasExpanded] = useState(false);
   const [mobileAddFeedback, setMobileAddFeedback] = useState<string | null>(null);
   const [isNodeSidebarOpen, setIsNodeSidebarOpen] = useState(true);
   const [isExecutionLogsOpen, setIsExecutionLogsOpen] = useState(false);
@@ -416,8 +419,6 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
   );
   const [currentWorkflowName, setCurrentWorkflowName] = useState("");
   const [currentWorkflowDescription, setCurrentWorkflowDescription] = useState("");
-  const [workflowResetSnapshot, setWorkflowResetSnapshot] =
-    useState<WorkflowSnapshot>(routeDefaultSnapshot);
   const [isWorkflowLoading, setIsWorkflowLoading] = useState(true);
   const [workflowLoadError, setWorkflowLoadError] = useState("");
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -645,7 +646,6 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
         setCurrentWorkflowId(null);
         setCurrentWorkflowName("");
         setCurrentWorkflowDescription("");
-        setWorkflowResetSnapshot(routeDefaultSnapshot);
         lastSavedSnapshotKeyRef.current = JSON.stringify(routeDefaultSnapshot);
         setWorkflowSaveStatus("unsaved");
         setLastSavedAt(null);
@@ -675,7 +675,6 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
       setCurrentWorkflowId(result.workflow.id);
       setCurrentWorkflowName(result.workflow.name);
       setCurrentWorkflowDescription(result.workflow.description ?? "");
-      setWorkflowResetSnapshot(result.workflow.snapshot);
       lastSavedSnapshotKeyRef.current = JSON.stringify(result.workflow.snapshot);
       setWorkflowSaveStatus("saved");
       setLastSavedAt(result.workflow.updatedAt ?? result.workflow.createdAt);
@@ -730,7 +729,6 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
       }
 
       lastSavedSnapshotKeyRef.current = snapshotKey;
-      setWorkflowResetSnapshot(snapshot);
       setWorkflowSaveStatus("saved");
       setLastSavedAt(new Date().toISOString());
       setIsSavingWorkflow(false);
@@ -1246,7 +1244,6 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
     closeNodeEditor();
     closeJsonModal();
     closeSaveWorkflowDialog();
-    setWorkflowResetSnapshot(routeDefaultSnapshot);
     setWorkflowSaveError("");
     loadWorkflowSnapshot(routeDefaultSnapshot);
     setViewportResetToken((currentToken) => currentToken + 1);
@@ -1323,7 +1320,6 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
         setCurrentWorkflowId(result.workflowId);
         setCurrentWorkflowName(name);
         setCurrentWorkflowDescription(description);
-        setWorkflowResetSnapshot(snapshot);
         lastSavedSnapshotKeyRef.current = snapshotKey;
         setWorkflowSaveStatus("saved");
         setLastSavedAt(new Date().toISOString());
@@ -1352,7 +1348,6 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
 
       setCurrentWorkflowName(name);
       setCurrentWorkflowDescription(description);
-      setWorkflowResetSnapshot(snapshot);
       lastSavedSnapshotKeyRef.current = snapshotKey;
       setWorkflowSaveStatus("saved");
       setLastSavedAt(new Date().toISOString());
@@ -1548,6 +1543,12 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
 
       switch(pressedKey){
         case "escape":
+          if (isCanvasExpanded) {
+            event.preventDefault();
+            setIsCanvasExpanded(false);
+            return;
+          }
+
           if (nodeEditor.editingNodeId !==null){
             closeNodeEditor();
           }
@@ -1693,6 +1694,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
     handlePasteNode,
     handleUndo,
     handleRedo,
+    isCanvasExpanded,
   ]
 );
 
@@ -1774,6 +1776,23 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
       window.removeEventListener("touchcancel", handleTouchCancel);
     };
   }, [addNode, canvasState.reactFlowInstance, isCompactViewport, mobileDragState]);
+
+  useEffect(() => {
+    if (!isCanvasExpanded || typeof document === "undefined") {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [isCanvasExpanded]);
 
   if (loading) {
     return (
@@ -2074,7 +2093,9 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
               isCompactViewport
                 ? cn(
                     "border-b border-black/8",
-                    isNodeSidebarOpen
+                    isCanvasExpanded
+                      ? "max-h-0 p-0"
+                      : isNodeSidebarOpen
                       ? "max-h-105 p-4 sm:p-5"
                       : "max-h-0 p-0"
                   )
@@ -2136,29 +2157,19 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
               </Card>
             </div>
 
-            <button
-              type="button"
-              aria-label={isNodeSidebarOpen ? "Collapse node sidebar" : "Expand node sidebar"}
-              title={isNodeSidebarOpen ? "Collapse node sidebar" : "Expand node sidebar"}
-              onClick={() => setIsNodeSidebarOpen((currentState) => !currentState)}
-              className={cn(
-                "absolute z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900",
-                isCompactViewport
-                  ? isNodeSidebarOpen
-                    ? "right-4 -bottom-5"
-                    : "right-4 top-3"
-                  : isNodeSidebarOpen
+            {!isCompactViewport ? (
+              <button
+                type="button"
+                aria-label={isNodeSidebarOpen ? "Collapse node sidebar" : "Expand node sidebar"}
+                title={isNodeSidebarOpen ? "Collapse node sidebar" : "Expand node sidebar"}
+                onClick={() => setIsNodeSidebarOpen((currentState) => !currentState)}
+                className={cn(
+                  "absolute z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900",
+                  isNodeSidebarOpen
                     ? "-right-5 top-5"
                     : "left-3 top-5"
-              )}
-            >
-              {isCompactViewport ? (
-                isNodeSidebarOpen ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )
-              ) : (
+                )}
+              >
                 <svg
                   className={cn(
                     "h-4 w-4 transition-transform duration-200",
@@ -2175,29 +2186,150 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                     d="M15 19l-7-7 7-7"
                   />
                 </svg>
-              )}
-            </button>
+              </button>
+            ) : null}
           </aside>
 
-          <div className="min-h-0 bg-[#f1f4f5] p-3 sm:p-5 lg:p-6">
-            <Card className="flex h-full min-h-[65vh] flex-col rounded-[18px] sm:min-h-[70vh] lg:min-h-0">
-              <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                <div>
-                  <CardTitle>Workflow canvas</CardTitle>
-                  <CardDescription className="mt-1">
-                    Make a workflow
-                  </CardDescription>
+          <div
+            className={cn(
+              "min-h-0 bg-[#f1f4f5] p-3 sm:p-5 lg:p-6",
+              isCanvasExpanded
+                ? "fixed inset-0 z-40 bg-slate-950/20 p-3 sm:p-4 lg:p-6"
+                : "",)}>
+
+            <Card
+              className={cn(
+                "flex h-full min-h-[65vh] flex-col rounded-[18px] sm:min-h-[70vh] lg:min-h-0",
+                isCanvasExpanded
+                  ? "min-h-full rounded-[22px] border-slate-300 shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
+                  : "",)}>
+
+
+              <div className="border-b border-slate-200 px-4 py-4 sm:px-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle>Workflow canvas</CardTitle>
+                    <CardDescription className="mt-1">
+                      Make a workflow
+                    </CardDescription>
+                  </div>
+                  <div
+                    data-export-exclude="true"
+                    className="flex shrink-0 items-center justify-end gap-2"
+                  >
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsNodeSidebarOpen((currentState) => !currentState)}
+                      className="h-9 rounded-full px-3 text-xs sm:hidden"
+                      aria-label={isNodeSidebarOpen ? "Hide node state" : "Show node state"}
+                      title={isNodeSidebarOpen ? "Hide node state" : "Show node state"}
+                    >
+                      Node state
+                      {isNodeSidebarOpen ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
-                  <Badge variant="outline">{nodes.length} nodes</Badge>
-                  <Badge variant="outline">{edges.length} links</Badge>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2 whitespace-nowrap text-xs font-medium text-slate-500">
+                    <Badge variant="outline">{nodes.length} nodes</Badge>
+                    <Badge variant="outline">{edges.length} links</Badge>
+                  </div>
+                  <div
+                    data-export-exclude="true"
+                    className="flex shrink-0 items-center justify-end gap-2"
+                  >
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsCanvasExpanded((currentState) => !currentState)}
+                    className="h-9 w-9 rounded-full border-slate-300 bg-white/95 shadow-sm backdrop-blur"
+                    aria-label={isCanvasExpanded ? "Exit expanded canvas" : "Expand canvas"}
+                    title={isCanvasExpanded ? "Exit expanded canvas (Esc)" : "Expand canvas"}
+                  >
+                    {isCanvasExpanded ? (
+                      <Minimize2 className="h-4 w-4" />
+                    ) : (
+                      <Maximize2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                  </div>
                 </div>
               </div>
 
+              {isCompactViewport && isCanvasExpanded && isNodeSidebarOpen ? (
+                <div className="border-b border-slate-200 bg-[#f6f8f9] px-4 py-4">
+                  <Card className="flex max-h-full min-h-0 flex-col rounded-2xl">
+                    <CardHeader className="p-4 pb-0">
+                      <CardTitle className="text-base">Node state</CardTitle>
+                    </CardHeader>
+                    <CardContent className="node-state-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
+                      <div className="grid grid-cols-2 gap-3 pb-1">
+                        {paletteNodeCatalog.map((nodeItem) => (
+                          <div
+                            key={`expanded-${nodeItem.key}`}
+                            draggable={!isCompactViewport}
+                            onDragStart={(event) =>
+                              handleNodeTypeDragStart(event, nodeItem)
+                            }
+                            onTouchStart={(event) =>
+                              handleMobileNodeTouchStart(event, nodeItem)
+                            }
+                            className={`workflow-node-palette-item flex min-w-0 cursor-grab flex-col items-center gap-3 rounded-xl border px-4 py-3 text-center transition active:cursor-grabbing sm:flex-row sm:items-start sm:justify-between sm:text-left ${workflowNodeAppearanceByKind[nodeItem.kind].sidebarClassName}`}
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-900">
+                                {getPaletteNodeLabel(nodeItem.kind)}
+                              </p>
+                              <p className="mt-1 text-[11px] leading-5 text-slate-500 sm:whitespace-nowrap">
+                                {getPaletteNodeSubtitle(nodeItem.kind)}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className={`w-full sm:w-auto sm:shrink-0 ${workflowNodeAppearanceByKind[nodeItem.kind].sidebarButtonClassName} ${isCompactViewport && mobileAddFeedback===getWorkflowTemplateFeedbackKey(nodeItem.kind, nodeItem.shape) ? "animate-pulse ring-2 ring-sky-400/60" : ""}`}
+                              onClick={() => handleAddNodeFromButton(nodeItem)}
+                            >
+                              Add
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : null}
+
               <div
                 ref={canvasContainerRef}
-                className="relative flex min-h-[55vh] flex-1 overflow-hidden rounded-b-[18px] bg-[#fbfcfd] sm:min-h-[60vh] lg:min-h-0"
+                className={cn(
+                  "relative flex min-h-[55vh] flex-1 overflow-hidden rounded-b-[18px] bg-[#fbfcfd] sm:min-h-[60vh] lg:min-h-0",
+                  isCanvasExpanded ? "min-h-0" : "",
+
+                )}
               >
+                {isCompactViewport && isCanvasExpanded && !isExecutionLogsOpen ? (
+                  <button
+                    type="button"
+                    aria-label="Show execution logs"
+                    title="Show execution logs"
+                    onClick={() => setIsExecutionLogsOpen(true)}
+                    className={cn(
+                      "absolute left-3 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900",
+                      getExecutionLogsToggleClassName(),
+                    )}
+                  >
+                    <PanelRightClose className="h-4 w-4" />
+                  </button>
+                ) : null}
                 <WorkflowCanvas
                   key={viewportResetToken}
                   nodes={canvasNodes}
@@ -2252,7 +2384,10 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
               aria-label="Close execution logs overlay"
               title="Close execution logs overlay"
               onClick={() => setIsExecutionLogsOpen(false)}
-              className="absolute inset-0 z-20 bg-slate-950/20"
+              className={cn(
+                "absolute inset-0 bg-slate-950/20",
+                isCanvasExpanded ? "z-[49]" : "z-20",
+              )}
             />
           ) : null}
 
@@ -2261,7 +2396,8 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
               "relative min-h-0 border-t border-black/8 bg-[#f8fafb] p-3 sm:p-5 transition-[width,padding] duration-300 ease-out lg:border-l lg:border-t-0",
               isCompactViewport
                 ? cn(
-                    "fixed bottom-0 left-0 top-0 z-30 w-[min(88vw,24rem)] max-w-sm border-r border-black/8 shadow-[18px_0_36px_rgba(15,23,42,0.16)] transition-transform duration-300 ease-out",
+                    "fixed bottom-0 left-0 top-0 w-[min(88vw,24rem)] max-w-sm border-r border-black/8 shadow-[18px_0_36px_rgba(15,23,42,0.16)] transition-transform duration-300 ease-out",
+                    isCanvasExpanded ? "z-50" : "z-30",
                     isExecutionLogsOpen ? "translate-x-0" : "-translate-x-full",
                   )
                 : isExecutionLogsOpen
@@ -2407,7 +2543,8 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
             )}
           </aside>
 
-          {(isCompactViewport || !isExecutionLogsOpen) ? (
+          {(isCompactViewport || !isExecutionLogsOpen) &&
+          !(isCompactViewport && isCanvasExpanded) ? (
             <button
               type="button"
               aria-label="Show execution logs"
@@ -2721,6 +2858,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
       ) : null}
 
       <WorkflowSaveDialog
+        key={`${currentWorkflowId ??"new"}-${isSaveDialogOpen ?"open" :"closed"} - ${currentWorkflowName}-${currentWorkflowDescription}`}
         open={isSaveDialogOpen}
         defaultName={currentWorkflowName}
         defaultDescription={currentWorkflowDescription}

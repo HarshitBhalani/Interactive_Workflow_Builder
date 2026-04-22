@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type JSX } from "react";
+import { useState, type JSX } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -28,16 +28,6 @@ export function WorkflowSaveDialog({
   const [name, setName] = useState(defaultName);
   const [description, setDescription] = useState(defaultDescription);
   const [nameError, setNameError] = useState("");
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setName(defaultName);
-    setDescription(defaultDescription);
-    setNameError("");
-  }, [defaultDescription, defaultName, open]);
 
   if (!open) {
     return null;

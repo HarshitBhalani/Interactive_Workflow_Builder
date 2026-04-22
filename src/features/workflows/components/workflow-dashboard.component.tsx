@@ -818,6 +818,7 @@ export function WorkflowDashboard(): JSX.Element {
         </section>
       </div>
       <WorkflowSaveDialog
+        key={`${editingWorkflow?.id ?? "none"}-${editingWorkflow?.updatedAt ?? "new"}-${editingWorkflow?.name ?? ""}-${editingWorkflow?.description ?? ""}`}
         open={editingWorkflow !== null}
         defaultName={editingWorkflow?.name ?? ""}
         defaultDescription={editingWorkflow?.description ?? ""}
