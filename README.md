@@ -39,9 +39,11 @@ The app now also includes authentication, Firestore-backed workflow persistence,
 - Manual first save with workflow name and optional description.
 - Debounced autosave for already-saved workflows.
 - Relative save status in the editor header, such as `Saved just now`.
-- Empty-state quick actions to start from a blank workflow or an approval-flow template.
 - Custom delete confirmation modal and toast notifications for key workflow actions.
-- Mobile canvas toolbar controls for cursor, drag, and zoom.
+- Workflow toolbar actions for dashboard navigation, save, AI generation, JSON import, and export options.
+- Export options for JSON, PNG, SVG, and PDF.
+- Mobile canvas toolbar controls for cursor, drag, zoom, and full-page canvas access.
+- Full-page canvas mode with mobile-friendly header controls for AI generation and node state.
 
 ## State management strategy
 
@@ -64,7 +66,6 @@ The app now also includes authentication, Firestore-backed workflow persistence,
 
 - Add API integration for external services.
 - Add workflow-level validation before export.
-- Add reusable workflow templates.
 - Support richer node configuration.
 - Improve edge editing and controls.
 - Add automated test coverage.
