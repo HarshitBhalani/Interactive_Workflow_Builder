@@ -2,15 +2,13 @@ import type { JSX } from "react";
 
 export function WorkflowHeading(): JSX.Element {
   return (
-    <div className="space-y-1">
-      <h1 className="flex items-center gap-3 whitespace-nowrap text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+    <div className="flex items-center gap-4">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-100 bg-white shadow-[0_14px_32px_rgba(37,99,235,0.12)]">
         <svg
-          width="28"
-          height="28"
           viewBox="0 0 40 40"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="h-7 w-7 shrink-0 sm:h-8 sm:w-8"
+          className="h-10 w-10 shrink-0"
           aria-hidden="true"
         >
           <path d="M35 3H25C23.8954 3 23 3.89543 23 5V15C23 16.1046 23.8954 17 25 17H35C36.1046 17 37 16.1046 37 15V5C37 3.89543 36.1046 3 35 3Z" stroke="#2563EB" strokeWidth="2" fill="none" />
@@ -33,8 +31,15 @@ export function WorkflowHeading(): JSX.Element {
           <path d="M23 12C24.1046 12 25 11.1046 25 10C25 8.89543 24.1046 8 23 8C21.8954 8 21 8.89543 21 10C21 11.1046 21.8954 12 23 12Z" fill="#2563EB" />
           <path d="M30 19C31.1046 19 32 18.1046 32 17C32 15.8954 31.1046 15 30 15C28.8954 15 28 15.8954 28 17C28 18.1046 28.8954 19 30 19Z" fill="#2563EB" />
         </svg>
-        Workflow Builder
-      </h1>
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-sky-700">
+          Interactive
+        </p>
+        <h1 className="whitespace-nowrap text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          Workflow Builder
+        </h1>
+      </div>
     </div>
   );
 }

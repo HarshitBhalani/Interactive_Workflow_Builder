@@ -124,7 +124,7 @@ export function SignUpPage() {
         </Button>
       </form>
 
-      <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+      <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
         <span>Already have an account?</span>
         <Link
           href="/login"
