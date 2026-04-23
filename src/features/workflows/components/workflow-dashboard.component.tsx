@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
+import { cn } from "@/common/utils/cn.util";
 import { useAuth } from "@/features/auth/context/auth.context";
 import { LogoutButton } from "@/features/auth/components/logout-button.component";
 import { WorkflowDeleteDialog } from "@/features/workflows/components/workflow-delete-dialog.component";
@@ -252,6 +253,7 @@ export function WorkflowDashboard(): JSX.Element {
   const [isUpdatingWorkflowMeta, setIsUpdatingWorkflowMeta] = useState(false);
   const [workflowMetaError, setWorkflowMetaError] = useState("");
   const [workflowDeleteError, setWorkflowDeleteError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
   const filteredWorkflows = normalizedSearchTerm
     ? workflows.filter((workflow) => {
@@ -263,6 +265,31 @@ export function WorkflowDashboard(): JSX.Element {
         );
       })
     : workflows;
+  const workflowsPerPage = 6;
+  const totalPages = Math.max(1, Math.ceil(filteredWorkflows.length / workflowsPerPage));
+  const paginatedWorkflows = filteredWorkflows.slice(
+    (currentPage - 1) * workflowsPerPage,
+    currentPage * workflowsPerPage,
+  );
+  const visiblePageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1).filter(
+    (pageNumber) =>
+      totalPages <= 5 ||
+      pageNumber === 1 ||
+      pageNumber === totalPages ||
+      Math.abs(pageNumber - currentPage) <= 1,
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [normalizedSearchTerm, viewMode]);
+
+  useEffect(() => {
+    if (currentPage <= totalPages) {
+      return;
+    }
+
+    setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     if (!user) {
@@ -628,7 +655,7 @@ export function WorkflowDashboard(): JSX.Element {
             </Card>
           ) : viewMode === "grid" ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {filteredWorkflows.map((workflow) => (
+              {paginatedWorkflows.map((workflow) => (
                 <Card key={workflow.id} className="min-w-0 rounded-3xl border-slate-200 shadow-sm">
                   <CardHeader className="space-y-3">
                     <WorkflowThumbnail
@@ -737,7 +764,7 @@ export function WorkflowDashboard(): JSX.Element {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {filteredWorkflows.map((workflow) => (
+              {paginatedWorkflows.map((workflow) => (
                 <Card
                   key={workflow.id}
                   className="rounded-[28px] border-slate-200 shadow-sm"
@@ -845,6 +872,67 @@ export function WorkflowDashboard(): JSX.Element {
               ))}
             </div>
           )}
+
+          {filteredWorkflows.length > 0 ? (
+            <div
+              className={cn(
+                "mt-6 flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm",
+                filteredWorkflows.length > workflowsPerPage
+                  ? "sm:flex-row sm:items-center sm:justify-between sm:text-left"
+                  : "justify-center",
+              )}
+            >
+              <div className="text-sm text-slate-600">
+                Showing {(currentPage - 1) * workflowsPerPage + 1}-
+                {Math.min(currentPage * workflowsPerPage, filteredWorkflows.length)} of {filteredWorkflows.length} workflows
+              </div>
+              {filteredWorkflows.length > workflowsPerPage ? (
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  {visiblePageNumbers.map((pageNumber, index) => {
+                    const previousPageNumber = visiblePageNumbers[index - 1];
+                    const shouldShowGap =
+                      typeof previousPageNumber === "number" &&
+                      pageNumber - previousPageNumber > 1;
+
+                    return (
+                      <div key={`page-${pageNumber}`} className="flex items-center gap-2">
+                        {shouldShowGap ? (
+                          <span className="px-1 text-sm text-slate-400">...</span>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant={pageNumber === currentPage ? "secondary" : "outline"}
+                          className="h-10 min-w-10 rounded-xl px-3"
+                          onClick={() => setCurrentPage(pageNumber)}
+                        >
+                          {pageNumber}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
         </section>
       </div>
       <WorkflowSaveDialog
