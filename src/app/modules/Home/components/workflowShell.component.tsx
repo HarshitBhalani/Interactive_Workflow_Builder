@@ -2148,10 +2148,10 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
         >
           <aside
             className={cn(
-              "relative h-full min-h-0 overflow-visible bg-[#f6f8f9] transition-[width,max-height,padding] duration-300 ease-out lg:border-r lg:border-b-0",
+              "relative min-h-0 overflow-visible bg-[#f6f8f9] transition-[width,max-height,padding] duration-300 ease-out lg:self-start lg:rounded-[28px] lg:border lg:border-slate-200 lg:bg-white/80 lg:shadow-[0_20px_48px_rgba(15,23,42,0.08)] lg:backdrop-blur-sm",
               isCompactViewport
                 ? cn(
-                    "border-b border-black/8",
+                    "h-full border-b border-black/8",
                     isCanvasExpanded
                       ? "max-h-0 p-0"
                       : isNodeSidebarOpen
@@ -2160,11 +2160,11 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                   )
                 : isCanvasExpanded
                   ? cn(
-                      "fixed bottom-6 left-6 top-6 z-50 w-[18rem] border border-black/8 shadow-[18px_0_36px_rgba(15,23,42,0.16)]",
+                      "fixed left-6 top-6 z-50 w-[18rem] border border-black/8 shadow-[18px_0_36px_rgba(15,23,42,0.16)]",
                       isNodeSidebarOpen ? "translate-x-0 p-6" : "-translate-x-[120%] p-0",
                     )
                   : cn(
-                      "border-b border-black/8",
+                      "mt-4 ml-4 h-auto border-b border-black/8 lg:max-h-[calc(100vh-14rem)]",
                       isNodeSidebarOpen
                         ? "w-full overflow-x-visible p-4 sm:p-5 lg:w-70"
                         : "w-0 overflow-visible p-0"
@@ -2173,13 +2173,13 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
           >
             <div
               className={cn(
-                "flex h-full min-h-0 flex-col transition-all duration-200",
+                "flex min-h-0 flex-col transition-all duration-200 lg:h-auto lg:max-h-[calc(100vh-16rem)]",
                 isNodeSidebarOpen
                   ? "pointer-events-auto opacity-100"
                   : "pointer-events-none opacity-0"
               )}
             >
-              <Card className="flex h-full max-h-full min-h-0 flex-col rounded-2xl">
+              <Card className="flex min-h-0 flex-col rounded-[24px] border-slate-200/90 shadow-none lg:max-h-[calc(100vh-16rem)]">
                 <CardHeader className="p-4 pb-0">
                   <CardTitle className="text-base">Node state</CardTitle>
                 </CardHeader>
