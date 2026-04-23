@@ -14,11 +14,6 @@ export default async function NewWorkflowRoute({ searchParams }: NewWorkflowRout
   const supportedTemplates: WorkflowTemplateId[] = [
     "blank",
     "approval",
-    "hr-approval",
-    "leave-request",
-    "bug-triage",
-    "invoice-approval",
-    "onboarding-flow",
   ];
   const template = supportedTemplates.includes(templateParam as WorkflowTemplateId)
     ? (templateParam as WorkflowTemplateId)
