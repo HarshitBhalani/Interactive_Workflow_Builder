@@ -488,6 +488,8 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
     hasSelectedLockTargets && lockTargets.every((node) => node.data.isLocked);
   const canGroupSelection = selectedCanvasNodes.length > 1;
   const canUngroupSelection = selectedGroupIds.size > 0;
+  const aiGenerateButtonClassName =
+    "border border-transparent bg-white text-slate-900 shadow-none [background:linear-gradient(#fff,#fff)_padding-box,linear-gradient(90deg,#2563eb_0%,#7c3aed_52%,#f43f5e_100%)_border-box] hover:bg-white hover:text-slate-950";
   const workflowGroupFrames: WorkflowGroupFrame[] = Array.from(
     nodes.reduce((groupMap, node) => {
       if (!node.data.groupId) {
@@ -658,7 +660,9 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
         setCurrentWorkflowId(null);
         setCurrentWorkflowName("");
         setCurrentWorkflowDescription("");
-        lastSavedSnapshotKeyRef.current = JSON.stringify(routeDefaultSnapshot);
+        lastSavedSnapshotKeyRef.current = JSON.stringify(
+          createWorkflowSnapshot(routeDefaultSnapshot.nodes, routeDefaultSnapshot.edges),
+        );
         setWorkflowSaveStatus("unsaved");
         setLastSavedAt(null);
         loadWorkflowSnapshot(routeDefaultSnapshot);
@@ -687,7 +691,12 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
       setCurrentWorkflowId(result.workflow.id);
       setCurrentWorkflowName(result.workflow.name);
       setCurrentWorkflowDescription(result.workflow.description ?? "");
-      lastSavedSnapshotKeyRef.current = JSON.stringify(result.workflow.snapshot);
+      lastSavedSnapshotKeyRef.current = JSON.stringify(
+        createWorkflowSnapshot(
+          result.workflow.snapshot.nodes,
+          result.workflow.snapshot.edges,
+        ),
+      );
       setWorkflowSaveStatus("saved");
       setLastSavedAt(result.workflow.updatedAt ?? result.workflow.createdAt);
       loadWorkflowSnapshot(result.workflow.snapshot);
@@ -1291,7 +1300,9 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
         setCurrentWorkflowId(null);
         setCurrentWorkflowName("");
         setCurrentWorkflowDescription("");
-        lastSavedSnapshotKeyRef.current = JSON.stringify(routeDefaultSnapshot);
+        lastSavedSnapshotKeyRef.current = JSON.stringify(
+          createWorkflowSnapshot(routeDefaultSnapshot.nodes, routeDefaultSnapshot.edges),
+        );
         setWorkflowSaveStatus("unsaved");
         router.replace(`/workflows/new?template=${template}`);
       }
@@ -1946,7 +1957,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
           <CardContent className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/dashboard"
-              className={buttonVariants({ variant: "default" })}
+              className={cn(buttonVariants({ variant: "default" }), "text-white hover:text-white")}
             >
               Go to dashboard
             </Link>
@@ -2043,7 +2054,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
               <Button
                 type="button"
                 onClick={handlePrimarySaveAction}
-                className="order-last col-span-2 w-full sm:order-none sm:col-span-1 sm:w-auto"
+                className="order-last col-span-2 w-full sm:order-0 sm:col-span-1 sm:w-auto"
               >
                 Save
               </Button>
@@ -2052,7 +2063,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                 variant="outline"
                 type="button"
                 onClick={openAiGenerationModal}
-                className="w-full sm:w-auto"
+                className={cn("w-full sm:w-auto", aiGenerateButtonClassName)}
               >
                 <Sparkles className="h-4 w-4" />
                 AI Generate
@@ -2148,7 +2159,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
         >
           <aside
             className={cn(
-              "relative min-h-0 overflow-visible bg-[#f6f8f9] transition-[width,max-height,padding] duration-300 ease-out lg:self-start lg:rounded-[28px] lg:border lg:border-slate-200 lg:bg-white/80 lg:shadow-[0_20px_48px_rgba(15,23,42,0.08)] lg:backdrop-blur-sm",
+              "relative min-h-0 overflow-visible bg-[#f6f8f9] transition-[width,max-height,padding] duration-300 ease-out",
               isCompactViewport
                 ? cn(
                     "h-full border-b border-black/8",
@@ -2160,11 +2171,11 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                   )
                 : isCanvasExpanded
                   ? cn(
-                      "fixed left-6 top-6 z-50 w-[18rem] border border-black/8 shadow-[18px_0_36px_rgba(15,23,42,0.16)]",
+                      "fixed left-6 top-6 z-50 w-[18rem] border border-black/8 shadow-[18px_0_36px_rgba(15,23,42,0.16)] lg:self-start lg:rounded-[28px] lg:border-slate-200 lg:bg-white/80 lg:shadow-[0_20px_48px_rgba(15,23,42,0.08)] lg:backdrop-blur-sm",
                       isNodeSidebarOpen ? "translate-x-0 p-6" : "-translate-x-[120%] p-0",
                     )
                   : cn(
-                      "mt-4 ml-4 h-auto border-b border-black/8 lg:max-h-[calc(100vh-14rem)]",
+                      "h-full border-b border-black/8 lg:border-r lg:border-b-0",
                       isNodeSidebarOpen
                         ? "w-full overflow-x-visible p-4 sm:p-5 lg:w-70"
                         : "w-0 overflow-visible p-0"
@@ -2173,13 +2184,21 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
           >
             <div
               className={cn(
-                "flex min-h-0 flex-col transition-all duration-200 lg:h-auto lg:max-h-[calc(100vh-16rem)]",
+                "flex min-h-0 flex-col transition-all duration-200",
+                !isCompactViewport && !isCanvasExpanded ? "h-full" : "lg:h-auto lg:max-h-[calc(100vh-16rem)]",
                 isNodeSidebarOpen
                   ? "pointer-events-auto opacity-100"
                   : "pointer-events-none opacity-0"
               )}
             >
-              <Card className="flex min-h-0 flex-col rounded-[24px] border-slate-200/90 shadow-none lg:max-h-[calc(100vh-16rem)]">
+              <Card
+                className={cn(
+                  "flex min-h-0 flex-col",
+                  !isCompactViewport && !isCanvasExpanded
+                    ? "h-full max-h-full rounded-2xl"
+                    : "rounded-3xl border-slate-200/90 shadow-none lg:max-h-[calc(100vh-16rem)]"
+                )}
+              >
                 <CardHeader className="p-4 pb-0">
                   <CardTitle className="text-base">Node state</CardTitle>
                 </CardHeader>
@@ -2231,7 +2250,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                   "absolute z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-900",
                   isNodeSidebarOpen
                     ? "-right-5 top-5"
-                    : "left-3 top-5"
+                    : "left-8 top-28"
                 )}
               >
                 <svg
@@ -2354,7 +2373,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                         variant="outline"
                         size="sm"
                         onClick={openAiGenerationModal}
-                        className="h-9 rounded-full px-3 text-xs"
+                        className={cn("h-9 rounded-full px-3 text-xs", aiGenerateButtonClassName)}
                       >
                         <Sparkles className="h-4 w-4" />
                         AI Generate
@@ -2418,7 +2437,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                                 variant="outline"
                                 size="icon"
                                 onClick={openAiGenerationModal}
-                                className="h-9 w-9 rounded-full border-slate-300 bg-white/95 shadow-sm backdrop-blur"
+                                className={cn("h-9 w-9 rounded-full bg-white/95 shadow-sm backdrop-blur", aiGenerateButtonClassName)}
                                 aria-label="Generate workflow with AI"
                                 title="Generate workflow with AI"
                               >
@@ -2641,7 +2660,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
               onClick={() => setIsExecutionLogsOpen(false)}
               className={cn(
                 "absolute inset-0 bg-slate-950/20",
-                isCanvasExpanded ? "z-[49]" : "z-20",
+                isCanvasExpanded ? "z-49" : "z-20",
               )}
             />
           ) : null}
@@ -2657,7 +2676,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                   )
                 : isCanvasExpanded
                   ? cn(
-                      "fixed bottom-6 right-6 top-6 z-50 w-[22rem] border border-black/8 shadow-[18px_0_36px_rgba(15,23,42,0.16)]",
+                      "fixed bottom-6 right-6 top-6 z-50 w-22rem border border-black/8 shadow-[18px_0_36px_rgba(15,23,42,0.16)] lg:rounded-[28px] lg:border-slate-200 lg:bg-white/80 lg:shadow-[0_20px_48px_rgba(15,23,42,0.08)] lg:backdrop-blur-sm",
                       isExecutionLogsOpen ? "translate-x-0 p-6" : "translate-x-[120%] p-0",
                     )
                   : isExecutionLogsOpen
@@ -2675,7 +2694,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                     : "pointer-events-none opacity-0",
               )}
             >
-            <Card className="flex h-full min-h-0 flex-col rounded-[18px]">
+            <Card className="flex h-full min-h-0 flex-col rounded-24px border-slate-200/90 shadow-none">
               <CardHeader className="border-b border-slate-200 px-5 py-4">
                 <div className="flex items-start gap-3">
                   <div>
@@ -2818,7 +2837,7 @@ export function WorkflowShell({ workflowId, template = "approval" }: WorkflowShe
                 getExecutionLogsToggleClassName(),
                 isCompactViewport
                   ? "-left-2 top-1/2 -translate-y-1/2"
-                  : "right-2 top-5",
+                  : "right-8 top-28",
               )}
             >
               {isCompactViewport ? (

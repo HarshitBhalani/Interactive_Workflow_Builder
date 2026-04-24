@@ -80,6 +80,22 @@ function isWorkflowEdge(edge: unknown): edge is WorkflowGraphEdge {
   );
 }
 
+function normalizeWorkflowEdge(edge: WorkflowGraphEdge): WorkflowGraphEdge {
+  return {
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    type: edge.type,
+    sourceHandle: edge.sourceHandle,
+    targetHandle: edge.targetHandle,
+    label: edge.label,
+    markerStart: edge.markerStart,
+    markerEnd: edge.markerEnd,
+    style: edge.style,
+    selected: false,
+  };
+}
+
 function createDefaultNodeConfig(kind: WorkflowNodeKind): WorkflowNodeConfig {
   switch (kind) {
     case "action":
@@ -178,7 +194,17 @@ export function normalizeWorkflowNode(node: WorkflowGraphNode): WorkflowGraphNod
     : normalizeWorkflowNodeShape(node.data.kind, node.data.shape);
 
   return {
-    ...node,
+    id: node.id,
+    type: node.type,
+    position: {
+      x: node.position.x,
+      y: node.position.y,
+    },
+    width: node.width,
+    height: node.height,
+    sourcePosition: node.sourcePosition,
+    targetPosition: node.targetPosition,
+    zIndex: node.zIndex,
     selected: node.selected ?? false,
     data: {
       title: node.data.title,
@@ -211,7 +237,7 @@ export function createWorkflowSnapshot(
       ...node,
       selected: false,
     })),
-    edges,
+    edges: edges.map(normalizeWorkflowEdge),
   };
 }
 
@@ -236,6 +262,6 @@ export function parseWorkflowSnapshot(jsonText: string): WorkflowSnapshot {
       ...node,
       selected: false,
     })),
-    edges: parsedValue.edges,
+    edges: parsedValue.edges.map(normalizeWorkflowEdge),
   };
 }

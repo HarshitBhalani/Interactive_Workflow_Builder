@@ -16,7 +16,14 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
-export const metadata: Metadata = appMetadata;
+export const metadata: Metadata = {
+  ...appMetadata,
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
+};
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,

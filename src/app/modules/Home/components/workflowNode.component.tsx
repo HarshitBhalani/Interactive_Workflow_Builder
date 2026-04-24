@@ -128,14 +128,14 @@ export function WorkflowNode({
   return (
     <div
       className={cn(
-        "group relative max-w-[75vw] pt-7 transition-all",
+        "group relative max-w-[75vw] pt-7",
         nodeShapeAppearance.frameClassName,
       )}
       style={resizedFrameStyle}
     >
       <div
         className={cn(
-          "absolute inset-0 border shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition-all",
+          "absolute inset-0 border shadow-[0_10px_24px_rgba(15,23,42,0.08)]",
           nodeAppearance.cardClassName,
           nodeShapeAppearance.shellClassName,
         currentStatusAppearance.shellClassName,
@@ -172,7 +172,7 @@ export function WorkflowNode({
         minHeight={110}
         position="bottom-right"
         className={cn(
-          "nodrag nopan h-6! w-6! rounded-full! border! border-slate-200! bg-white! text-slate-500! shadow-[0_8px_18px_rgba(15,23,42,0.12)]! transition hover:border-slate-300! hover:text-slate-900!",
+          "nodrag nopan h-6! w-6! rounded-full! border! border-slate-200! bg-white! text-slate-500! shadow-[0_8px_18px_rgba(15,23,42,0.12)]! hover:border-slate-300! hover:text-slate-900!",
           data.isLocked ? "pointer-events-none! opacity-0!" : "",
           selected ? "opacity-100!" : "opacity-0! group-hover:opacity-100!",
         )}
@@ -195,7 +195,7 @@ export function WorkflowNode({
         position={Position.Left}
         style={{ top: "50%" }}
         className={cn(
-          "h-3! w-3! border-2! border-white! bg-slate-400! opacity-85! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
+          "h-3! w-3! border-2! border-white! bg-slate-400! opacity-85! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
           leftTargetHandleClassName,
           selected
             ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(148,163,184,0.16)]!"
@@ -276,7 +276,7 @@ export function WorkflowNode({
               position={Position.Right}
               style={{top: "34%"}}
               className={cn(
-                "left-auto! -right-1.5! -translate-y-1/2! translate-x-0! h-3! w-3! border-2! border-white! bg-emerald-500! opacity-90! shadow-[0_0_0_0_rgba(16,185,129,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(16,185,129,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(16,185,129,0.24)]!",
+                "left-auto! -right-1.5! -translate-y-1/2! translate-x-0! h-3! w-3! border-2! border-white! bg-emerald-500! opacity-90! shadow-[0_0_0_0_rgba(16,185,129,0.0)]! group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(16,185,129,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(16,185,129,0.24)]!",
                 selected
                   ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(16,185,129,0.18)]!"
                   : "",
@@ -290,7 +290,7 @@ export function WorkflowNode({
               position={Position.Right}
               style={{ top: "66%" }}
               className={cn(
-                "left-auto! -right-1.5! -translate-y-1/2! translate-x-0! h-3! w-3! border-2! border-white! bg-rose-500! opacity-90! shadow-[0_0_0_0_rgba(244,63,94,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(244,63,94,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(244,63,94,0.24)]!",
+                "left-auto! -right-1.5! -translate-y-1/2! translate-x-0! h-3! w-3! border-2! border-white! bg-rose-500! opacity-90! shadow-[0_0_0_0_rgba(244,63,94,0.0)]! group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(244,63,94,0.18)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(244,63,94,0.24)]!",
                 selected
                   ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(244,63,94,0.18)]!"
                   : "",
@@ -311,7 +311,7 @@ export function WorkflowNode({
             position={Position.Right}
             style={{ top: sourceHandleTop }}
             className={cn(
-              "left-auto! -right-1.5! -translate-y-1/2! translate-x-0! h-3! w-3! border-2! border-white! bg-slate-400! opacity-85! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! transition-all duration-200 group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
+              "left-auto! -right-1.5! -translate-y-1/2! translate-x-0! h-3! w-3! border-2! border-white! bg-slate-400! opacity-85! shadow-[0_0_0_0_rgba(148,163,184,0.0)]! group-hover:scale-110! group-hover:opacity-100! group-hover:shadow-[0_0_0_6px_rgba(148,163,184,0.16)]! hover:scale-115! hover:shadow-[0_0_0_8px_rgba(148,163,184,0.22)]!",
               selected
                 ? "scale-110! opacity-100! shadow-[0_0_0_6px_rgba(148,163,184,0.16)]!"
                 : "",

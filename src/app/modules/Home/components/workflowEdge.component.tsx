@@ -64,7 +64,6 @@ export function WorkflowEdge({
                   ? "drop-shadow(0 0 8px rgba(15, 23, 42, 0.18))"
                   : "none",
                 transform: selected ? "scale(1.04)" : "scale(1)",
-                transition: "transform 180ms ease, filter 180ms ease",
               }}
             >
               {String(label)}

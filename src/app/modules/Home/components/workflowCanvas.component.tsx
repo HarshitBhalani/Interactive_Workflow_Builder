@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowDownToLine,
   ArrowUpToLine,
+  ChevronDown,
   Edit3,
   Group,
   Hand,
@@ -59,6 +60,21 @@ const edgeTypes = {
 const groupFrameHorizontalPadding = 28;
 const groupFrameTopPadding = 72;
 const groupFrameBottomPadding = 26;
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+
+  return (
+    tagName === "input" ||
+    tagName === "textarea" ||
+    tagName === "select" ||
+    target.isContentEditable
+  );
+}
 
 function GroupFramesOverlay({
   groups,
@@ -154,7 +170,7 @@ function GroupFramesOverlay({
   }
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-[8] overflow-hidden">
+    <div className="pointer-events-none absolute inset-0 z-8 overflow-hidden">
       <div
         className="pointer-events-none"
         style={{
@@ -491,7 +507,7 @@ function WorkflowMiniMapGroupsOverlay({
       width={width}
       height={height}
       viewBox={`${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`}
-      className="pointer-events-none absolute inset-0 z-[1] overflow-hidden rounded-[16px]"
+      className="pointer-events-none absolute inset-0 z-1 overflow-hidden rounded-2xl"
       aria-hidden="true"
     >
       {groups.map((group) => (
@@ -539,11 +555,13 @@ function WorkflowCanvas({
   onToggleLockSelection,
   onMoveGroupBy,
   onUpdateGroupMeta,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   keepToolbarSingleRow = false,
   hideCanvasActions = false,
   onCanvasInit,
   viewportResetToken = 0,
 }: Props): JSX.Element {
+  const selectionToolsMenuRef = useRef<HTMLDivElement | null>(null);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance<WorkflowCanvasNode, WorkflowGraphEdge> | null>(
       null
@@ -552,6 +570,8 @@ function WorkflowCanvas({
   const [isMiniMapVisible, setIsMiniMapVisible] = useState(true);
   const [interactionMode, setInteractionMode] =
     useState<CanvasInteractionMode>("select");
+  const [isSelectionToolbarExpanded, setIsSelectionToolbarExpanded] = useState(false);
+  const [selectionToolbarSelectionKey, setSelectionToolbarSelectionKey] = useState("");
   const [viewportZoom, setViewportZoom] = useState(1);
   const miniMapWidth = 192;
   const miniMapHeight = 136;
@@ -587,7 +607,6 @@ function WorkflowCanvas({
     const frameId = window.requestAnimationFrame(() => {
       reactFlowInstance.fitView({
         padding: isCompactViewport ? 0.12 : 0.18,
-        duration: 350,
       });
     });
 
@@ -656,6 +675,7 @@ function WorkflowCanvas({
     });
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   function handleResetZoom(): void {
     reactFlowInstance?.setViewport(
       {
@@ -670,9 +690,137 @@ function WorkflowCanvas({
   const isSelectionMode = interactionMode === "select";
   const isSelectionEnabled = isSelectionMode;
   const isDragMode = interactionMode === "pan";
-  const showSelectionTools = selectedNodeCount > 0;
-  const shouldWrapToolbar = showSelectionTools && !keepToolbarSingleRow;
+  const hasActiveNodeDrag = nodes.some((node) => node.dragging);
+  const hasSelection = selectedNodeCount > 0;
+  const selectedNodeKey = nodes
+    .filter((node) => node.selected)
+    .map((node) => node.id)
+    .sort()
+    .join("|");
+  const isSelectionMenuOpen =
+    hasSelection &&
+    isSelectionToolbarExpanded &&
+    selectionToolbarSelectionKey === selectedNodeKey;
+  const showSelectionTools =
+    isSelectionMenuOpen && !hasActiveNodeDrag;
   const zoomLabel = `${Math.round(viewportZoom * 100)}%`;
+
+  function closeSelectionToolbar(): void {
+    setIsSelectionToolbarExpanded(false);
+    setSelectionToolbarSelectionKey("");
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  function toggleSelectionToolbar(): void {
+    if (!hasSelection) {
+      return;
+    }
+
+    if (isSelectionMenuOpen) {
+      closeSelectionToolbar();
+      return;
+    }
+
+    setSelectionToolbarSelectionKey(selectedNodeKey);
+    setIsSelectionToolbarExpanded(true);
+  }
+
+  useEffect(() => {
+    if (!isSelectionToolbarExpanded) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent): void {
+      if (!selectionToolsMenuRef.current?.contains(event.target as Node)) {
+        closeSelectionToolbar();
+      }
+    }
+
+    window.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isSelectionToolbarExpanded]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+
+      const normalizedKey = event.key.toLowerCase();
+
+      if ((event.ctrlKey || event.metaKey) && normalizedKey === "g") {
+        event.preventDefault();
+
+        if (event.shiftKey) {
+          if (canUngroupSelection) {
+            onUngroupSelection();
+          }
+          return;
+        }
+
+        if (canGroupSelection) {
+          onGroupSelection();
+        }
+        return;
+      }
+
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+
+      if (normalizedKey === "0" || event.code === "Numpad0") {
+        event.preventDefault();
+        handleResetZoom();
+        return;
+      }
+
+      switch (event.code) {
+        case "KeyV":
+          event.preventDefault();
+          setInteractionMode("select");
+          return;
+        case "KeyH":
+          event.preventDefault();
+          setInteractionMode("pan");
+          return;
+        case "KeyM":
+          event.preventDefault();
+          if (hasSelection) {
+            toggleSelectionToolbar();
+          }
+          return;
+        case "KeyL":
+          event.preventDefault();
+          if (canToggleLockSelection) {
+            onToggleLockSelection();
+          }
+          return;
+        case "BracketRight":
+          event.preventDefault();
+          if (hasSelection) {
+            onBringSelectionToFront();
+          }
+          return;
+        case "BracketLeft":
+          event.preventDefault();
+          if (hasSelection) {
+            onSendSelectionBackward();
+          }
+          return;
+        default:
+          return;
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [canGroupSelection, canToggleLockSelection, canUngroupSelection, handleResetZoom, hasSelection, isSelectionMenuOpen, onBringSelectionToFront, onGroupSelection, onSendSelectionBackward, onToggleLockSelection, onUngroupSelection, selectedNodeKey, toggleSelectionToolbar]);
 
   return (
     <div
@@ -728,13 +876,9 @@ function WorkflowCanvas({
         />
         {!isCompactViewport ? (
           <div
+            ref={selectionToolsMenuRef}
             data-export-exclude="true"
-            className={cn(
-              "absolute left-1/2 top-4 z-10 -translate-x-1/2 items-center gap-1 rounded-2xl border border-slate-200 bg-white/96 p-1 shadow-[0_12px_24px_rgba(15,23,42,0.12)] backdrop-blur",
-              shouldWrapToolbar
-                ? "flex w-[min(42rem,calc(100%-2rem))] flex-wrap justify-center"
-                : "flex w-fit max-w-[calc(100%-2rem)] flex-nowrap justify-center",
-            )}
+            className="absolute left-1/2 top-4 z-10 flex w-fit max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-1 rounded-2xl border border-slate-200 bg-white/96 p-1 shadow-[0_12px_24px_rgba(15,23,42,0.12)] backdrop-blur"
           >
             <button
               type="button"
@@ -742,15 +886,19 @@ function WorkflowCanvas({
               title="Selection mode"
               onClick={() => setInteractionMode("select")}
               className={cn(
-                "flex h-10 min-w-[6.5rem] items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition sm:px-4",
-                shouldWrapToolbar ? "flex-1 sm:flex-none" : "flex-none",
+                "flex h-10 min-w-26 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition sm:px-4",
                 isSelectionMode
                   ? "bg-sky-500 text-white shadow-[0_10px_18px_rgba(14,165,233,0.28)]"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
               )}
             >
               <MousePointer2 size={16} />
-              <span>Cursor</span>
+              <span className="flex items-center gap-2">
+                <span>Cursor</span>
+                <span className="rounded-md bg-white/18 px-1.5 py-0.5 text-[10px] font-semibold text-white/90">
+                  V
+                </span>
+              </span>
             </button>
             <button
               type="button"
@@ -758,15 +906,19 @@ function WorkflowCanvas({
               title="Drag mode"
               onClick={() => setInteractionMode("pan")}
               className={cn(
-                "flex h-10 min-w-[6.5rem] items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition sm:px-4",
-                shouldWrapToolbar ? "flex-1 sm:flex-none" : "flex-none",
+                "flex h-10 min-w-26 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition sm:px-4",
                 !isSelectionMode
                   ? "bg-slate-900 text-white shadow-[0_10px_18px_rgba(15,23,42,0.18)]"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
               )}
             >
               <Hand size={16} />
-              <span>Drag</span>
+              <span className="flex items-center gap-2">
+                <span>Drag</span>
+                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                  H
+                </span>
+              </span>
             </button>
             <button
               type="button"
@@ -774,85 +926,157 @@ function WorkflowCanvas({
               title="Reset zoom to 100%"
               onClick={handleResetZoom}
               className={cn(
-                "flex h-10 min-w-[5.5rem] items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 sm:px-4",
-                shouldWrapToolbar ? "flex-1 sm:flex-none" : "flex-none",
+                "flex h-10 min-w-22 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 sm:px-4",
               )}
             >
               <SearchCheck size={16} />
-              <span>{zoomLabel}</span>
+              <span className="flex items-center gap-2">
+                <span>{zoomLabel}</span>
+                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                  0
+                </span>
+              </span>
             </button>
+            <div className="mx-1 h-7 w-px bg-slate-200" />
             <button
               type="button"
-              aria-label={areAllSelectedLockTargetsLocked ? "Unlock selection" : "Lock selection"}
-              title={areAllSelectedLockTargetsLocked ? "Unlock selection" : "Lock selection"}
-              onClick={onToggleLockSelection}
-              disabled={!canToggleLockSelection}
+              aria-label="Toggle selection tools"
+              title={
+                hasSelection
+                  ? isSelectionToolbarExpanded
+                    ? "Hide selection tools"
+                    : "Show selection tools"
+                  : "Select a node to open selection tools"
+              }
+              onClick={() => {
+                if (!hasSelection) {
+                  return;
+                }
+
+                toggleSelectionToolbar();
+              }}
+              disabled={!hasSelection}
               className={cn(
-                "flex h-10 min-w-[6.5rem] items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition sm:px-4",
-                shouldWrapToolbar ? "flex-1 sm:flex-none" : "flex-none",
-                areAllSelectedLockTargetsLocked
-                  ? "bg-amber-100 text-amber-800 shadow-[0_10px_18px_rgba(245,158,11,0.18)]"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                !canToggleLockSelection
-                  ? "cursor-not-allowed text-slate-300 hover:bg-transparent hover:text-slate-300"
-                  : "",
+                "flex h-10 min-w-11 items-center justify-center rounded-xl border border-transparent transition",
+                hasSelection
+                  ? "bg-slate-900 text-white shadow-[0_10px_18px_rgba(15,23,42,0.18)] hover:bg-slate-800"
+                  : "cursor-not-allowed text-slate-300",
               )}
             >
-              {areAllSelectedLockTargetsLocked ? <Unlock size={16} /> : <Lock size={16} />}
-              <span>{areAllSelectedLockTargetsLocked ? "Unlock" : "Lock"}</span>
+              <ChevronDown
+                size={18}
+                className={cn(
+                  "transition-transform duration-200",
+                  isSelectionMenuOpen ? "rotate-180" : "",
+                )}
+              />
             </button>
             {showSelectionTools ? (
-              <>
-                <button
-                  type="button"
-                  aria-label="Bring selection to front"
-                  title="Bring selection to front"
-                  onClick={onBringSelectionToFront}
-                  className="flex h-10 min-w-12 items-center justify-center rounded-xl px-3 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300"
-                >
-                  <ArrowUpToLine size={16} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Send selection backward"
-                  title="Send selection backward"
-                  onClick={onSendSelectionBackward}
-                  className="flex h-10 min-w-12 items-center justify-center rounded-xl px-3 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300"
-                >
-                  <ArrowDownToLine size={16} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Group selection"
-                  title="Group selection"
-                  onClick={onGroupSelection}
-                  disabled={!canGroupSelection}
-                  className="flex h-10 min-w-[6rem] flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300 sm:flex-none sm:px-4"
-                >
-                  <Group size={16} />
-                  <span>Group</span>
-                </button>
-                <button
-                  type="button"
-                  aria-label="Ungroup selection"
-                  title="Ungroup selection"
-                  onClick={onUngroupSelection}
-                  disabled={!canUngroupSelection}
-                  className="flex h-10 min-w-[6.5rem] flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300 sm:flex-none sm:px-4"
-                >
-                  <Ungroup size={16} />
-                  <span>Ungroup</span>
-                </button>
-                <div className="flex h-10 min-w-[6rem] flex-1 items-center justify-center rounded-xl bg-slate-50 px-3 text-center text-xs font-semibold uppercase tracking-widest text-slate-500 sm:flex-none">
+              <div className="absolute left-[calc(100%+0.75rem)] top-0 z-20 w-56 rounded-2xl border border-slate-200 bg-white/98 p-2 shadow-[0_18px_40px_rgba(15,23,42,0.16)] backdrop-blur">
+                <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                   {selectedNodeCount} selected
                 </div>
-              </>
+                <div className="mt-2 rounded-xl border border-slate-200 p-1">
+                  <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                    Layer
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Bring selection to front"
+                    title="Bring selection to front"
+                    onClick={() => {
+                      onBringSelectionToFront();
+                      closeSelectionToolbar();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+                  >
+                    <ArrowUpToLine size={16} />
+                    <span className="flex-1">Upper</span>
+                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                      ]
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Send selection backward"
+                    title="Send selection backward"
+                    onClick={() => {
+                      onSendSelectionBackward();
+                      closeSelectionToolbar();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+                  >
+                    <ArrowDownToLine size={16} />
+                    <span className="flex-1">Lower</span>
+                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                      [
+                    </span>
+                  </button>
+                </div>
+                <div className="mt-2 rounded-xl border border-slate-200 p-1">
+                  <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                    Options
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={areAllSelectedLockTargetsLocked ? "Unlock selection" : "Lock selection"}
+                    title={areAllSelectedLockTargetsLocked ? "Unlock selection" : "Lock selection"}
+                    onClick={() => {
+                      onToggleLockSelection();
+                      closeSelectionToolbar();
+                    }}
+                    disabled={!canToggleLockSelection}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-white"
+                  >
+                    {areAllSelectedLockTargetsLocked ? <Unlock size={16} /> : <Lock size={16} />}
+                    <span className="flex-1">{areAllSelectedLockTargetsLocked ? "Unlock" : "Lock"}</span>
+                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                      L
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Group selection"
+                    title="Group selection"
+                    onClick={() => {
+                      onGroupSelection();
+                      closeSelectionToolbar();
+                    }}
+                    disabled={!canGroupSelection}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-white"
+                  >
+                    <Group size={16} />
+                    <span className="flex-1">Group</span>
+                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                      Ctrl+G
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Ungroup selection"
+                    title="Ungroup selection"
+                    onClick={() => {
+                      onUngroupSelection();
+                      closeSelectionToolbar();
+                    }}
+                    disabled={!canUngroupSelection}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-white"
+                  >
+                    <Ungroup size={16} />
+                    <span className="flex-1">Ungroup</span>
+                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                      Ctrl+Shift+G
+                    </span>
+                  </button>
+                </div>
+              </div>
             ) : null}
           </div>
         ) : (
           <div
+            ref={selectionToolsMenuRef}
             data-export-exclude="true"
-            className="absolute left-1/2 top-3 z-10 flex w-[min(calc(100%-1.25rem),16.5rem)] -translate-x-1/2 items-center gap-1 rounded-xl border border-slate-200 bg-white/96 p-1 shadow-[0_12px_24px_rgba(15,23,42,0.12)] backdrop-blur"
+            className="absolute left-1/2 top-3 z-10 flex w-[min(calc(100%-1.25rem),20rem)] -translate-x-1/2 items-center gap-1 rounded-xl border border-slate-200 bg-white/96 p-1 shadow-[0_12px_24px_rgba(15,23,42,0.12)] backdrop-blur"
           >
             <button
               type="button"
@@ -866,7 +1090,6 @@ function WorkflowCanvas({
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
               )}
             >
-              <MousePointer2 size={14} />
               <span>Cursor</span>
             </button>
             <button
@@ -881,7 +1104,6 @@ function WorkflowCanvas({
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
               )}
             >
-              <Hand size={14} />
               <span>Drag</span>
             </button>
             <button
@@ -889,11 +1111,88 @@ function WorkflowCanvas({
               aria-label="Reset zoom to 100%"
               title="Reset zoom to 100%"
               onClick={handleResetZoom}
-              className="flex h-9 min-w-[4.25rem] items-center justify-center gap-1 rounded-lg px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+              className="flex h-9 min-w-17 items-center justify-center gap-1 rounded-lg px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
             >
-              <SearchCheck size={13} />
               <span>{zoomLabel}</span>
             </button>
+            <button
+              type="button"
+              aria-label="Toggle selection tools"
+              title={
+                hasSelection
+                  ? isSelectionToolbarExpanded
+                    ? "Hide selection tools"
+                    : "Show selection tools"
+                  : "Select a node to open selection tools"
+              }
+              onClick={() => {
+                if (!hasSelection) {
+                  return;
+                }
+
+                toggleSelectionToolbar();
+              }}
+              disabled={!hasSelection}
+              className={cn(
+                "flex h-9 min-w-[2.4rem] items-center justify-center rounded-lg border border-transparent transition",
+                hasSelection
+                  ? "bg-slate-900 text-white shadow-[0_10px_18px_rgba(15,23,42,0.18)] hover:bg-slate-800"
+                  : "cursor-not-allowed text-slate-300",
+              )}
+            >
+              <ChevronDown
+                size={16}
+                className={cn(
+                  "transition-transform duration-200",
+                  isSelectionMenuOpen ? "rotate-180" : "",
+                )}
+              />
+            </button>
+            {showSelectionTools ? (
+              <div className="absolute right-0 top-[calc(100%+0.55rem)] z-20 w-52 rounded-2xl border border-slate-200 bg-white/98 p-2 shadow-[0_18px_40px_rgba(15,23,42,0.16)] backdrop-blur">
+                <button
+                  type="button"
+                  aria-label={areAllSelectedLockTargetsLocked ? "Unlock selection" : "Lock selection"}
+                  title={areAllSelectedLockTargetsLocked ? "Unlock selection" : "Lock selection"}
+                  onClick={() => {
+                    onToggleLockSelection();
+                    closeSelectionToolbar();
+                  }}
+                  disabled={!canToggleLockSelection}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-white"
+                >
+                  {areAllSelectedLockTargetsLocked ? <Unlock size={16} /> : <Lock size={16} />}
+                  <span>{areAllSelectedLockTargetsLocked ? "Unlock" : "Lock"}</span>
+                </button>
+                <div className="my-2 h-px bg-slate-200" />
+                <button
+                  type="button"
+                  aria-label="Bring selection to front"
+                  title="Bring selection to front"
+                  onClick={() => {
+                    onBringSelectionToFront();
+                    closeSelectionToolbar();
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+                >
+                  <ArrowUpToLine size={16} />
+                  <span>Upper</span>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Send selection backward"
+                  title="Send selection backward"
+                  onClick={() => {
+                    onSendSelectionBackward();
+                    closeSelectionToolbar();
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+                >
+                  <ArrowDownToLine size={16} />
+                  <span>Lower</span>
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
         <div
@@ -986,7 +1285,7 @@ function WorkflowCanvas({
             {isMiniMapVisible ? (
               <div
                 data-export-exclude="true"
-                className="absolute bottom-4 right-4 overflow-hidden rounded-[16px]"
+                className="absolute bottom-4 right-4 overflow-hidden rounded-2xl"
                 style={{
                   width: miniMapWidth,
                   height: miniMapHeight,
