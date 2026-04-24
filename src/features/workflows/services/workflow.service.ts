@@ -154,6 +154,10 @@ function mapWorkflowDocument(
 
     return {
       id: snapshot.id,
+      workflowId:
+        typeof rawData.workflowId === "string" && rawData.workflowId.trim().length > 0
+          ? rawData.workflowId
+          : snapshot.id,
       userId: rawData.userId,
       name: rawData.name,
       description:
@@ -178,6 +182,7 @@ export async function createWorkflowDocument(
     const sanitizedSnapshot = sanitizeWorkflowSnapshotForFirestore(input.snapshot);
 
     await setDoc(workflowRef, {
+      workflowId: workflowRef.id,
       userId: input.userId,
       name: input.name.trim(),
       description: input.description?.trim() || null,
@@ -207,6 +212,7 @@ export async function updateWorkflowDocument(
     const sanitizedSnapshot = sanitizeWorkflowSnapshotForFirestore(input.snapshot);
 
     await updateDoc(doc(db, "workflows", input.workflowId), {
+      workflowId: input.workflowId,
       userId: input.userId,
       name: input.name.trim(),
       description: input.description?.trim() || null,
@@ -250,6 +256,7 @@ export async function renameWorkflowDocument(input: {
 }): Promise<{ success: true } | { success: false; message: string }> {
   try {
     await updateDoc(doc(db, "workflows", input.workflowId), {
+      workflowId: input.workflowId,
       name: input.name.trim(),
       description: input.description?.trim() || null,
       updatedAt: serverTimestamp(),
@@ -272,6 +279,7 @@ export async function setWorkflowPinnedState(input: {
 }): Promise<{ success: true } | { success: false; message: string }> {
   try {
     await updateDoc(doc(db, "workflows", input.workflowId), {
+      workflowId: input.workflowId,
       isPinned: input.isPinned,
       updatedAt: serverTimestamp(),
     });

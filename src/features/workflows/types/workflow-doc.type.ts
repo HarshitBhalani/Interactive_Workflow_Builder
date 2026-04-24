@@ -2,6 +2,7 @@ import type { WorkflowSnapshot } from "@/app/modules/Home/types/workflow.type";
 
 export type SavedWorkflowRecord = {
   id: string;
+  workflowId: string;
   userId: string;
   name: string;
   description: string | null;
