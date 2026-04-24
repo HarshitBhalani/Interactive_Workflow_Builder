@@ -4,6 +4,18 @@ import {
   parseGeneratedWorkflowDefinition,
 } from "@/app/modules/Home/utils/workflowAi.util";
 
+type RateLimitBucket = {
+  timestamps: number[];
+};
+
+type WorkflowRateLimitStore = Map<string, RateLimitBucket>;
+
+const shortWindowMs = Number(process.env.AI_WORKFLOW_RATE_LIMIT_SHORT_WINDOW_MS ?? 60_000);
+const shortWindowMax = Number(process.env.AI_WORKFLOW_RATE_LIMIT_SHORT_MAX ?? 4);
+const longWindowMs = Number(process.env.AI_WORKFLOW_RATE_LIMIT_LONG_WINDOW_MS ?? 3_600_000);
+const longWindowMax = Number(process.env.AI_WORKFLOW_RATE_LIMIT_LONG_MAX ?? 20);
+const workflowRateLimitStore = getWorkflowRateLimitStore();
+
 const workflowGenerationSchema = {
   type: "object",
   properties: {
@@ -92,6 +104,127 @@ const workflowGenerationSchema = {
   additionalProperties: false,
 } as const;
 
+function getWorkflowRateLimitStore(): WorkflowRateLimitStore {
+
+  const globalStore = globalThis as typeof globalThis & {
+    __workflowGenerateRateLimitStore?: WorkflowRateLimitStore;
+  };
+
+  if (!globalStore.__workflowGenerateRateLimitStore) {
+
+    globalStore.__workflowGenerateRateLimitStore = new Map<string, RateLimitBucket>();
+  }
+
+  return globalStore.__workflowGenerateRateLimitStore;
+}
+
+function getClientIpAddress(request: Request): string {
+
+
+  const headerCandidates = [
+    request.headers.get("cf-connecting-ip"),
+    request.headers.get("x-real-ip"),
+
+    request.headers.get("x-forwarded-for"),
+  ];
+
+  for (const headerValue of headerCandidates) {
+    if (!headerValue) {
+
+      continue;
+    }
+
+    const firstIp = headerValue.split(",")[0]?.trim();
+
+
+    if (firstIp) {
+      return firstIp;
+    }
+  }
+
+
+  return "unknown";
+}
+
+
+function getRetryAfterSeconds(timestamps: number[], windowMs: number, now: number): number {
+  if (timestamps.length ===0) 
+    {
+    return 1;
+  }
+
+  const oldestTimestamp = timestamps[0] ?? now;
+
+  const retryAfterMs = Math.max(windowMs - (now - oldestTimestamp), 1_000);
+
+
+
+  return Math.ceil(retryAfterMs / 1_000);
+}
+
+
+function createRateLimitResponse(retryAfterSeconds: number): Response {
+  return NextResponse.json(
+
+    {
+      success: false,
+      message:
+        "Too many AI workflow requests. Please wait a bit and try again.",
+    },
+
+    {
+      status: 429,
+      headers: {
+        "Retry-After": String(retryAfterSeconds),
+      },
+
+    },
+
+  );
+}
+
+function checkWorkflowGenerationRateLimit(request: Request): Response | null {
+
+  const clientIpAddress = getClientIpAddress(request);
+
+  const now = Date.now();
+  const bucket = workflowRateLimitStore.get(clientIpAddress) ?? { timestamps: [] };
+  const longWindowTimestamps = bucket.timestamps.filter(
+    (timestamp) => now - timestamp < longWindowMs,
+
+  );
+  const shortWindowTimestamps = longWindowTimestamps.filter(
+    (timestamp) => now - timestamp < shortWindowMs,
+  );
+
+
+  bucket.timestamps = longWindowTimestamps;
+
+  if (shortWindowTimestamps.length >= shortWindowMax) {
+
+    workflowRateLimitStore.set(clientIpAddress, bucket);
+    return createRateLimitResponse(
+
+      getRetryAfterSeconds(shortWindowTimestamps, shortWindowMs, now),
+    );
+  }
+
+
+  if (longWindowTimestamps.length >= longWindowMax) {
+    workflowRateLimitStore.set(clientIpAddress, bucket);
+
+    return createRateLimitResponse(
+      getRetryAfterSeconds(longWindowTimestamps, longWindowMs, now),
+    );
+  }
+
+  bucket.timestamps.push(now);
+  workflowRateLimitStore.set(clientIpAddress, bucket);
+  
+
+  return null;
+}
+
 type GenerateWorkflowRequestBody = {
   prompt?: unknown;
 };
@@ -177,6 +310,12 @@ function getGroqOutputText(value: unknown): string | null {
 
 export async function POST(request: Request): Promise<Response> {
   try {
+    const rateLimitResponse = checkWorkflowGenerationRateLimit(request);
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     const groqApiKey = process.env.GROQ_API_KEY;
     const openAiApiKey = process.env.OPENAI_API_KEY;
 
